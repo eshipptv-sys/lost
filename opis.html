@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Опись — бланк</title>
+<style>
+  :root { --ink:#000; --line:#000; --muted:#555; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#f0f0f0; color:var(--ink);
+         font-family:"Times New Roman", Georgia, serif; font-size:12pt; }
+
+  .toolbar { position:sticky; top:0; padding:10px 16px; background:#fff;
+             border-bottom:1px solid #ccc; display:flex; gap:12px; align-items:center;
+             font-family:system-ui, sans-serif; font-size:13px; }
+  .toolbar button { padding:6px 14px; font-size:13px; cursor:pointer; }
+  .toolbar span { color:var(--muted); }
+
+  .sheet { width:210mm; min-height:297mm; margin:16px auto; padding:15mm 15mm 12mm;
+           background:#fff; box-shadow:0 1px 6px rgba(0,0,0,.25); }
+
+  h1 { text-align:center; font-size:16pt; letter-spacing:2px; margin:0 0 4mm; }
+  .subtitle { text-align:center; font-size:11pt; margin:0 0 8mm; }
+
+  .fld { display:inline-block; border-bottom:1px solid var(--line);
+         min-width:40mm; min-height:6mm; }
+  .row { margin-bottom:4mm; }
+  .row .fld { width:auto; }
+  .grow { display:block; border-bottom:1px solid var(--line); height:7mm; }
+  .cap { font-size:8pt; color:var(--muted); text-align:center; display:block; margin-top:1mm; }
+
+  table { width:100%; border-collapse:collapse; margin:6mm 0 8mm; }
+  th, td { border:1px solid var(--line); padding:2mm 2mm; font-size:11pt; }
+  th { font-weight:normal; text-align:center; font-size:10pt; }
+  td { height:9mm; }
+  .c-num { width:12mm; text-align:center; }
+  .c-qty { width:20mm; }
+  .c-note { width:45mm; }
+
+  .total { margin:0 0 8mm; }
+  .signs { display:flex; gap:14mm; margin-top:12mm; }
+  .signs > div { flex:1; }
+
+  @media print {
+    body { background:#fff; }
+    .toolbar { display:none; }
+    .sheet { width:auto; margin:0; padding:0; box-shadow:none; min-height:0; }
+    @page { size:A4; margin:15mm; }
+  }
+  @media (max-width:800px) {
+    .sheet { width:auto; margin:8px; padding:12px; }
+    .signs { display:block; }
+    .signs > div { margin-bottom:10mm; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button onclick="window.print()">Печать / Сохранить в PDF</button>
+  <span>Поля можно заполнить прямо на экране, затем распечатать.</span>
+</div>
+
+<div class="sheet" contenteditable="true" spellcheck="false">
+
+  <div class="row">
+    <span class="fld" style="min-width:110mm">&nbsp;</span>
+    <span class="cap" style="text-align:left; display:block">организация / подразделение</span>
+  </div>
+
+  <h1>ОПИСЬ</h1>
+  <p class="subtitle">
+    №&nbsp;<span class="fld" style="min-width:25mm">&nbsp;</span>
+    от «<span class="fld" style="min-width:12mm">&nbsp;</span>»
+    <span class="fld" style="min-width:30mm">&nbsp;</span>
+    20<span class="fld" style="min-width:8mm">&nbsp;</span> г.
+  </p>
+
+  <div class="row">
+    Передал: <span class="fld" style="min-width:130mm">&nbsp;</span>
+    <span class="cap">ФИО, должность</span>
+  </div>
+  <div class="row">
+    Принял: <span class="fld" style="min-width:132mm">&nbsp;</span>
+    <span class="cap">ФИО, должность</span>
+  </div>
+  <div class="row">
+    Основание: <span class="fld" style="min-width:125mm">&nbsp;</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="c-num">№<br>п/п</th>
+        <th>Наименование</th>
+        <th class="c-qty">Кол-во</th>
+        <th class="c-note">Примечание</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <p class="total">
+    Всего передано наименований:
+    <span class="fld" style="min-width:35mm">&nbsp;</span>
+    на общее количество
+    <span class="fld" style="min-width:35mm">&nbsp;</span>
+  </p>
+
+  <div class="signs">
+    <div>
+      Передал <span class="grow"></span>
+      <span class="cap">подпись / расшифровка</span>
+    </div>
+    <div>
+      Принял <span class="grow"></span>
+      <span class="cap">подпись / расшифровка</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // 20 пустых строк описи
+  var tbody = document.getElementById('rows');
+  for (var i = 1; i <= 20; i++) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td class="c-num">' + i + '</td><td></td><td class="c-qty"></td><td class="c-note"></td>';
+    tbody.appendChild(tr);
+  }
+</script>
+
+</body>
+</html>
