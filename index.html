@@ -174,6 +174,10 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
 .cl:not(.fin) .ws::after{content:"";align-self:center;width:.4em;height:.85em;background:var(--glow);box-shadow:0 0 10px var(--glow);
   animation:caret 1s ease-in-out infinite}
 @keyframes caret{50%{opacity:.12}}
+.capbar{height:3px;border-radius:2px;background:var(--stage-edge);overflow:hidden}
+.capbar i{display:block;height:100%;width:calc(var(--p,0) * 100%);background:var(--me-glow);box-shadow:0 0 10px var(--me-glow);transition:width .2s}
+.capbar.busy i{width:35%;animation:scan 1.3s ease-in-out infinite alternate}
+@keyframes scan{from{transform:translateX(-10%)}to{transform:translateX(200%)}}
 .stage-note{margin:0;font-size:12px;line-height:1.45;color:var(--stage-dim)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -204,6 +208,7 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
       <div class="lines" id="lines"></div>
       <p class="cap-empty" id="capEmpty">Говорите, и слова загорятся здесь</p>
     </div>
+    <div class="capbar" id="capBar" hidden><i id="capBarFill"></i></div>
     <p class="stage-note" id="capNote" hidden></p>
   </section>
 
@@ -300,6 +305,8 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
 'use strict';
 const PREFIX = 'racia-v1-';
 const HOME = 'https://eshipptv-sys.github.io/lost/';
+const MODEL = { key:'ru-small-0.22', file:'vosk/vosk-model-small-ru-0.22.tar.gz', bytes:46236562, mb:44 };
+const ASSET = p => new URL(p, isWeb() ? location.href : HOME).href;
 const $ = id => document.getElementById(id);
 const S = { mode:null, role:null, state:'idle', peer:null, call:null, pc:null, code:null,
   localStream:null, remoteStream:null, localMeter:null, remoteMeter:null, muted:false,
@@ -448,7 +455,7 @@ async function ensureMic(){
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ const e = new Error('insecure'); e.name = 'Insecure'; throw e; }
   S.localStream = await navigator.mediaDevices.getUserMedia(micConstraints(pref('mic')));
   S.localMeter = makeMeter(S.localStream);
-  applyMute(); fillMics();
+  applyMute(); fillMics(); capPreload();
   return S.localStream;
 }
 function stopMic(){
@@ -503,6 +510,7 @@ async function switchMic(id){
     S.localStream.getTracks().forEach(t => t.stop());
     if (S.localMeter) S.localMeter.disconnect();
     S.localStream = ns; S.localMeter = makeMeter(ns);
+    voskDetach();
     if (cap.rec){ const r = cap.rec; cap.rec = null; try{ r.abort(); }catch(e){} }
     applyMute();
   }catch(e){ setStatus('Не удалось переключить микрофон', 'err'); }
@@ -818,8 +826,9 @@ async function manualMakeAnswer(){
 
 /* ---------- субтитры: каждое слово загорается ---------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const touch = !!(window.matchMedia && matchMedia('(pointer:coarse)').matches);
-const cap = { on:false, rec:null, done:0, line:0, pending:'', fails:0, quick:0, t0:0, heard:false, demo:0, starts:0 };
+const cap = { on:false, rec:null, done:0, line:0, pending:'', fails:0, quick:0, t0:0, heard:false, demo:0, starts:0, msg:'' };
+/* распознавание речи прямо на устройстве (Vosk), без Google и без интернета после первой загрузки */
+const VOSK = { state:'idle', pct:0, model:null, rec:null, src:null, node:null, loading:null, off:0 };
 const capLines = new Map();
 const MAX_LINES = 5;
 
@@ -894,12 +903,105 @@ function capRecv(d){
   if (!d || typeof d.s !== 'string') return;
   capShow('friend', 'f' + String(d.id).slice(0, 12), d.s.slice(0, 400), !!d.f);
 }
-function capWanted(){ return !!SR && cap.on && S.state === 'incall' && !S.muted; }
+function voskOK(){
+  const AC = window.AudioContext || window.webkitAudioContext;
+  return typeof WebAssembly === 'object' && !!window.Worker && !!window.indexedDB && !!window.fetch && !!AC && 'createScriptProcessor' in AC.prototype;
+}
+function capEngine(){ if (VOSK.state !== 'failed' && voskOK()) return 'vosk'; return SR ? 'web' : null; }
+function capWanted(){ return cap.on && S.state === 'incall' && !S.muted && !!capEngine(); }
 function capSync(){
-  if (capWanted()){ if (!cap.rec) capStartRec(); }
-  else if (cap.rec){ const r = cap.rec; cap.rec = null; try{ r.abort(); }catch(e){} if (cap.pending) capEmit(cap.pending, true); }
+  const want = capWanted(), eng = capEngine();
+  if (!(want && eng === 'vosk')) voskDetach();
+  if (!(want && eng === 'web') && cap.rec){ const r = cap.rec; cap.rec = null; try{ r.abort(); }catch(e){} }
+  if (!want){ if (cap.pending) capEmit(cap.pending, true); return; }
+  if (eng === 'vosk'){
+    if (VOSK.model) voskAttach();
+    else ensureVosk().then(() => { if (capWanted() && capEngine() === 'vosk') voskAttach(); }, () => {});
+  } else if (eng === 'web' && !cap.rec) capStartRec();
+}
+function capPreload(){ if (cap.on && capEngine() === 'vosk') ensureVosk().catch(() => {}); }
+function loadScript(src){
+  return new Promise((res, rej) => {
+    const el = document.createElement('script'); el.src = src; el.async = true;
+    el.onload = res; el.onerror = () => rej(new Error('не загрузился модуль распознавания'));
+    document.head.append(el);
+  });
+}
+async function fetchWithProgress(url, onp){
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('сервер ответил ' + r.status);
+  const total = +r.headers.get('content-length') || MODEL.bytes;
+  if (!r.body || !r.body.getReader) return await r.blob();
+  const rd = r.body.getReader(), parts = []; let got = 0;
+  for (;;){
+    const {done, value} = await rd.read(); if (done) break;
+    parts.push(value); got += value.length; onp(Math.min(1, got / total));
+  }
+  return new Blob(parts, {type:'application/gzip'});
+}
+function ensureVosk(){
+  if (VOSK.model) return Promise.resolve(VOSK.model);
+  if (VOSK.loading) return VOSK.loading;
+  VOSK.loading = (async () => {
+    VOSK.state = 'loading'; VOSK.pct = 0; capUI();
+    if (!window.Vosk) await loadScript(ASSET('vosk/vosk.js'));
+    if (!window.Vosk) throw new Error('модуль распознавания не запустился');
+    const modelUrl = ASSET(MODEL.file);
+    let url = modelUrl + '#' + MODEL.key, blobUrl = null;
+    if (pref('voskOk') !== MODEL.key){
+      let shown = -1;
+      const blob = await fetchWithProgress(modelUrl, p => { const v = Math.floor(p * 100); if (v !== shown){ shown = v; VOSK.pct = p; capUI(); } });
+      blobUrl = URL.createObjectURL(blob); url = blobUrl + '#' + MODEL.key;
+    }
+    VOSK.state = 'unpack'; capUI();
+    const model = new window.Vosk.Model(url, -1);
+    await new Promise((res, rej) => {
+      const t = setTimeout(() => rej(new Error('распознавание слишком долго готовится')), 240000);
+      model.on('load', m => { clearTimeout(t); (m && m.result) ? res() : rej(new Error('модель речи не загрузилась')); });
+      model.on('error', m => { clearTimeout(t); rej(new Error((m && m.error) || 'ошибка модели речи')); });
+    });
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    pref('voskOk', MODEL.key);
+    VOSK.model = model; VOSK.state = 'ready'; capUI();
+    return model;
+  })().catch(e => {
+    VOSK.state = 'failed'; VOSK.loading = null; pref('voskOk', '');
+    cap.msg = 'Не удалось включить распознавание речи: ' + (e && e.message || 'ошибка') + '.' + (SR ? ' Пробуем распознавание браузера.' : ' Слова друга всё равно появятся.');
+    capUI(); capSync();
+    throw e;
+  });
+  return VOSK.loading;
+}
+function voskAttach(){
+  if (!VOSK.model || VOSK.rec || !S.localStream) return;
+  ensureAudioCtx(); if (!S.ac) return;
+  let rec;
+  try{ rec = new VOSK.model.KaldiRecognizer(S.ac.sampleRate); }catch(e){ return; }
+  /* длинную фразу режем на строки, как в субтитрах */
+  const flow = (text, fin) => {
+    const w = String(text || '').split(/\s+/).filter(Boolean);
+    while (w.length - VOSK.off > 14){ capEmit(w.slice(VOSK.off, VOSK.off + 10).join(' '), true); VOSK.off += 10; }
+    const rest = w.slice(VOSK.off).join(' ');
+    if (fin){ VOSK.off = 0; if (rest) capEmit(rest, true); else if (cap.pending) capEmit(cap.pending, true); }
+    else if (rest) capEmit(rest, false);
+  };
+  rec.on('partialresult', m => { if (VOSK.rec === rec && m && m.result) flow(m.result.partial, false); });
+  rec.on('result', m => { if (VOSK.rec === rec) flow(m && m.result && m.result.text, true); });
+  rec.on('error', () => {});
+  const src = S.ac.createMediaStreamSource(S.localStream);
+  const node = S.ac.createScriptProcessor(4096, 1, 1);
+  node.onaudioprocess = e => { if (VOSK.rec === rec && !S.muted){ try{ rec.acceptWaveform(e.inputBuffer); }catch(_){} } };
+  src.connect(node); node.connect(S.ac.destination);
+  VOSK.rec = rec; VOSK.src = src; VOSK.node = node; VOSK.off = 0;
+}
+function voskDetach(){
+  if (!VOSK.rec) return;
+  const {rec, src, node} = VOSK; VOSK.rec = VOSK.src = VOSK.node = null;
+  try{ node.onaudioprocess = null; node.disconnect(); src.disconnect(); }catch(e){}
+  try{ rec.remove(); }catch(e){}
 }
 function capStop(){
+  voskDetach();
   if (cap.rec){ const r = cap.rec; cap.rec = null; try{ r.abort(); }catch(e){} }
   cap.pending = '';
   for (const L of capLines.values()) L.el.classList.add('fin');
@@ -942,14 +1044,21 @@ function capStartRec(){
 }
 function capOff(msg){ cap.on = false; capSync(); capUI(msg); }
 function capUI(msg){
-  const b = $('btnCap');
-  b.hidden = !SR;
+  if (msg !== undefined) cap.msg = msg;
+  const eng = capEngine(), b = $('btnCap');
+  b.hidden = !eng;
   b.setAttribute('aria-pressed', String(cap.on));
   b.textContent = cap.on ? 'Моя речь: вкл' : 'Моя речь: выкл';
-  let n = msg || '';
-  if (!n && !SR) n = 'Этот браузер не переводит речь в текст, поэтому ваши слова здесь не появятся. Слова друга появятся, если он в Chrome или Edge.';
-  else if (!n && !cap.on && touch) n = 'На телефоне распознавание речи может мешать микрофону, поэтому оно выключено. Включите кнопкой «Моя речь», если хотите попробовать.';
+  let n = cap.msg || '', bar = null;
+  if (!n && cap.on && eng === 'vosk'){
+    if (VOSK.state === 'loading'){ n = 'Загружаем распознавание речи: ' + Math.round(VOSK.pct * 100) + '% из ' + MODEL.mb + ' МБ. Это один раз, дальше оно хранится в браузере и работает без интернета.'; bar = VOSK.pct; }
+    else if (VOSK.state === 'unpack'){ n = 'Готовим распознавание речи…'; bar = 'busy'; }
+  }
+  if (!n && !eng) n = 'Этот браузер не умеет переводить речь в текст. Ваши слова здесь не появятся, а слова друга появятся.';
   $('capNote').textContent = n; $('capNote').hidden = !n;
+  $('capBar').hidden = bar === null;
+  $('capBar').classList.toggle('busy', bar === 'busy');
+  if (typeof bar === 'number') $('capBar').style.setProperty('--p', bar.toFixed(3));
 }
 
 /* ---------- прочее ---------- */
@@ -991,7 +1100,7 @@ $('btnSound').onclick = () => { $('remote').play().then(() => { $('btnSound').hi
 $('vol').value = pref('vol') || 100;
 $('vol').oninput = e => { $('remote').volume = e.target.value / 100; pref('vol', e.target.value); };
 $('micSel').onchange = e => switchMic(e.target.value);
-$('btnCap').onclick = () => { cap.on = !cap.on; pref('cap', cap.on ? '1' : '0'); capUI(); capSync(); };
+$('btnCap').onclick = () => { cap.on = !cap.on; pref('cap2', cap.on ? '1' : '0'); cap.msg = ''; capUI(); capSync(); capPreload(); };
 $('mStartA').onclick = manualStartA;
 $('mStartB').onclick = manualStartB;
 $('mConnect').onclick = manualConnect;
@@ -1019,7 +1128,7 @@ function readHash(){
 window.addEventListener('hashchange', readHash);
 
 (function init(){
-  cap.on = SR ? (pref('cap') ? pref('cap') === '1' : !touch) : false;
+  cap.on = capEngine() ? (pref('cap2') ? pref('cap2') === '1' : true) : false;
   capUI(); capDemo();
   if (!isWeb()){
     const f = $('fine'); f.textContent = 'Онлайн-версия, которую можно открыть с телефона: ';
