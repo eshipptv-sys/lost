@@ -327,7 +327,7 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
 <script>
 'use strict';
 const PREFIX = 'racia-v1-';
-const VERSION = '4 · 11.10.2026';
+const VERSION = '5 · 11.10.2026';
 const HOME = 'https://eshipptv-sys.github.io/lost/';
 const MODEL = { key:'ru-small-0.22', file:'vosk/vosk-model-small-ru-0.22.tar.gz', bytes:46236562, mb:44 };
 const ASSET = p => new URL(p, isWeb() ? location.href : HOME).href;
@@ -685,6 +685,8 @@ function wireDc(pc, ch){
 }
 function peerError(peer, err){
   if (S.peer !== peer) return;
+  /* разговор уже идёт — запоздалые ошибки сервера поиска его не касаются */
+  if (S.state === 'incall' || R.mode === 'relay') return;
   const down = ['network','socket-error','socket-closed','server-error','disconnected'].includes(err.type);
   if (S.state === 'incall' && down) return;
   /* сервер прямой связи недоступен, но работает связь через сервер-ретранслятор */
@@ -967,7 +969,8 @@ function relayPublish(bytes, conns, t){
 }
 function relayHello(){
   if (!R.pub) return;
-  relayPublish(u8cat([Uint8Array.of(0), te.encode(JSON.stringify({s:R.sid, k:b64(R.pub), o:R.opusOK ? 1 : 0}))]));
+  const p2p = S.peer && S.peer.open && !S.peer.disconnected && pref('forceRelay') !== '1' ? 1 : 0;
+  relayPublish(u8cat([Uint8Array.of(0), te.encode(JSON.stringify({s:R.sid, k:b64(R.pub), o:R.opusOK ? 1 : 0, p:p2p}))]));
 }
 async function relaySend(type, payload, force){
   const key = R.key; if (!key) return;
@@ -1012,7 +1015,7 @@ async function relayHelloRx(bytes){
     const peerKey = await crypto.subtle.importKey('raw', unb64(d.k), {name:'ECDH', namedCurve:'P-256'}, false, []);
     const key = await crypto.subtle.deriveKey({name:'ECDH', public:peerKey}, kp.privateKey, {name:'AES-GCM', length:128}, false, ['encrypt', 'decrypt']);
     if (R.peerSid !== d.s || R.kp !== kp) return;
-    R.key = key; R.peerOpus = !!d.o; R.established = false; R.seen.clear(); R.rxSeq = -1; R.lastRx = Date.now();
+    R.key = key; R.peerOpus = !!d.o; R.peerP2P = d.p !== 0; R.established = false; R.seen.clear(); R.rxSeq = -1; R.lastRx = Date.now();
   }catch(e){ if (R.peerSid === d.s) R.peerSid = ''; return; }
   relayHello();
   relaySendCtl({t:'ready'});
@@ -1037,13 +1040,13 @@ function p2pUp(){
   return !!pc && linkState(pc) === 'connected';
 }
 function p2pDrop(){
+  /* закрывает только прямой канал; звук через сервер не трогает */
   const call = S.call; S.call = null;
-  if (call){
-    const c = ctls.get(call.peer); ctls.delete(call.peer);
-    try{ c && c.close(); }catch(e){}
-    try{ call.close(); }catch(e){}
-  }
-  if (S.remoteStream){
+  if (!call) return;
+  const c = ctls.get(call.peer); ctls.delete(call.peer);
+  try{ c && c.close(); }catch(e){}
+  try{ call.close(); }catch(e){}
+  if (S.remoteStream && R.mode !== 'relay'){
     S.remoteStream = null; $('remote').srcObject = null;
     if (S.remoteMeter) S.remoteMeter.disconnect(); S.remoteMeter = null;
   }
@@ -1052,13 +1055,15 @@ function relayLinked(){
   R.lastRx = Date.now();
   if (R.mode === 'relay') return;
   if (p2pUp() && S.state === 'incall'){ R.mode = 'p2p'; relaySendCtl({t:'mode', m:'p2p'}); return; }
-  const force = pref('forceRelay') === '1';
+  /* у кого-то из двоих нет сервера поиска по коду — прямая связь невозможна, ждать нечего */
+  const myP2P = !!(S.peer && S.peer.open && !S.peer.disconnected);
+  const force = pref('forceRelay') === '1' || !R.peerP2P || !myP2P;
   if (S.role === 'guest'){
     if (S.state !== 'incall') setStatus('Друг найден. Соединяемся…');
     clearTimeout(R.p2pT);
     R.p2pT = setTimeout(() => {
       if (R.established && R.mode !== 'relay' && !(p2pUp() && S.state === 'incall')) enterRelay(true);
-    }, force || !S.peer ? 0 : 7000);
+    }, force ? 0 : 7000);
   } else {
     if (force) enterRelay(true);
     else if (S.state !== 'incall') setStatus('Друг подключается…');
