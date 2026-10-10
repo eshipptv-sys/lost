@@ -141,6 +141,12 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
 .invite code{font:13px/1.45 var(--f-lcd);word-break:break-all;user-select:all;-webkit-user-select:all;background:var(--bg);
   border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--ink)}
 .fine a{color:inherit}
+.diag{list-style:none;margin:0;padding:0;display:grid;gap:7px;font-size:13px;line-height:1.4}
+.diag:empty{display:none}
+.diag li{display:grid;grid-template-columns:1.3em minmax(0,1fr) auto;gap:8px;align-items:baseline}
+.diag li>span:nth-child(2){overflow-wrap:anywhere}
+.diag li>span:last-child{font-family:var(--f-lcd);font-size:12px;white-space:nowrap}
+.diag .ok{color:var(--ok)} .diag .bad{color:var(--bad)} .diag .wait{color:var(--muted)}
 .check{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45;color:var(--ink);cursor:pointer}
 .check input{width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:var(--accent)}
 
@@ -274,6 +280,17 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
     </div>
   </details>
 
+  <details class="fold" id="diag">
+    <summary>Проверка связи</summary>
+    <div class="inner">
+      <p class="note">Если не соединяется, нажмите кнопку у себя и попросите друга сделать то же самое. Пришлите оба результата.</p>
+      <button class="btn small" id="btnDiag">Проверить связь</button>
+      <ul class="diag" id="diagList"></ul>
+      <p class="note" id="diagSum" hidden></p>
+      <button class="btn small" id="btnDiagCopy" hidden>Скопировать результат</button>
+    </div>
+  </details>
+
   <details class="fold" id="settings">
     <summary>Настройки</summary>
     <div class="inner">
@@ -310,6 +327,7 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
 <script>
 'use strict';
 const PREFIX = 'racia-v1-';
+const VERSION = '4 · 11.10.2026';
 const HOME = 'https://eshipptv-sys.github.io/lost/';
 const MODEL = { key:'ru-small-0.22', file:'vosk/vosk-model-small-ru-0.22.tar.gz', bytes:46236562, mb:44 };
 const ASSET = p => new URL(p, isWeb() ? location.href : HOME).href;
@@ -390,7 +408,7 @@ function toWaiting(){
   $('linkTxt').textContent = inviteLink();
   $('btnShare').hidden = !navigator.share;
   $('btnCopy').classList.toggle('primary', !navigator.share);
-  igniteText($('waitText'), 'Отправьте другу ссылку. Он откроет её, нажмёт «Подключиться», и связь начнётся сама.', 35);
+  igniteText($('waitText'), 'Отправьте другу ссылку и сразу вернитесь на эту страницу. Пока она свёрнута, телефон её усыпляет, и друг не сможет подключиться.', 35);
   setStatus('Канал открыт. Ждём друга…');
 }
 function toConnecting(status, hint){
@@ -432,7 +450,7 @@ function endCall(){
   $('timer').textContent = '00:00'; $('route').textContent = ''; setBars(0);
 }
 function stopAll(){
-  endCall(); clearTimeout(S.joinTimer);
+  endCall(); clearTimeout(S.joinTimer); clearTimeout(S.retryT); S.retryCall = null;
   relayStop();
   const p = S.peer; S.peer = null; ctls.clear();
   if (p) setTimeout(() => { try{ p.destroy(); }catch(e){} }, 350);
@@ -675,7 +693,12 @@ function peerError(peer, err){
     if (S.role === 'host' && S.state === 'connecting' && relayUp()) toWaiting();
     return;
   }
-  if (err.type === 'peer-unavailable' && relayAlive()){ p2pDrop(); setStatus('Ищем друга через сервер…'); return; }
+  if (err.type === 'peer-unavailable' && S.role === 'guest' && S.state !== 'incall'){
+    p2pDrop();
+    setStatus('Ищем друга… Страница Рации у него должна быть открыта, а не свёрнута.');
+    clearTimeout(S.retryT); S.retryT = setTimeout(() => { if (S.retryCall) S.retryCall(); }, 5000);
+    return;
+  }
   stopAll(); toIdle(PEER_ERR[err.type] || ('Ошибка: ' + (err.message || err.type)), 'err');
 }
 function attachCall(call){
@@ -738,17 +761,23 @@ async function joinChannel(){
   relayStart('g', code);
   S.joinTimer = setTimeout(() => {
     if (S.mode === 'peer' && S.role === 'guest' && S.state !== 'incall'){
-      stopAll(); toIdle('Не удалось соединиться за 30 секунд. Проверьте код канала и интернет у обоих. Если не помогает — в настройках укажите другой сервер-ретранслятор.', 'err');
+      stopAll(); toIdle('Не удалось найти друга за полторы минуты. Проверьте код канала. Страница Рации у друга должна быть открыта на экране. Если не помогает, откройте «Проверка связи» у обоих.', 'err');
     }
-  }, 30000);
+  }, 90000);
   if (typeof Peer === 'undefined' || pref('forceRelay') === '1') return;
   const peer = S.peer = makePeer(PREFIX + 'g' + rnd(12, 'abcdefghijkmnpqrstuvwxyz23456789'));
-  peer.on('open', () => {
-    if (S.peer !== peer) return;
+  const tryCall = () => {
+    if (S.peer !== peer || S.state === 'incall' || R.mode === 'relay' || peer.disconnected) return;
+    p2pDrop();
     const call = peer.call(PREFIX + code, S.localStream);
-    if (!call){ if (relayAlive()) return; stopAll(); toIdle('Не удалось начать вызов. Попробуйте ещё раз.', 'err'); return; }
+    if (!call) return;
     attachCall(call);
     try{ wirePeerCtl(peer.connect(PREFIX + code, {label:'ctl', reliable:true})); }catch(e){}
+  };
+  S.retryCall = tryCall;
+  peer.on('open', tryCall);
+  peer.on('disconnected', () => {
+    setTimeout(() => { try{ if (S.peer === peer && peer.disconnected && !peer.destroyed) peer.reconnect(); }catch(e){} }, 1500);
   });
   peer.on('error', err => peerError(peer, err));
 }
@@ -759,13 +788,15 @@ async function joinChannel(){
    брокер видит лишь зашифрованные пакеты. Пакеты дублируются во все доступные брокеры. */
 const RELAYS_DEFAULT = [
   'wss://broker.emqx.io:8084/mqtt',
+  'wss://broker-cn.emqx.io:8084/mqtt',
   'wss://broker.hivemq.com:8884/mqtt',
   'wss://test.mosquitto.org:8081/mqtt',
-  'wss://mqtt.eclipseprojects.io/mqtt'
+  'wss://mqtt.eclipseprojects.io/mqtt',
+  'wss://public:public@public.cloud.shiftr.io'
 ];
 const R = { gen:0, active:false, role:null, code:null, base:'', conns:[], kp:null, pub:null, sid:'', peerSid:'',
   key:null, established:false, mode:'none', opusOK:null, peerOpus:false, useOpus:false, idOut:0, seen:new Map(),
-  txSeq:0, rxSeq:-1, lastRx:0, helloT:0, p2pT:0, pingT:0, statT:0, tx:null, rx:null };
+  txSeq:0, rxSeq:-1, lastRx:0, helloT:0, p2pT:0, pingT:0, statT:0, tx:null, rx:null, t0:0, warned:false };
 const te = new TextEncoder(), td = new TextDecoder();
 
 function u8cat(parts){
@@ -790,7 +821,13 @@ function relayUp(){ return R.active && R.conns.some(c => c.ok); }
 
 /* минимальный MQTT 3.1.1 поверх WebSocket: CONNECT, SUBSCRIBE, PUBLISH QoS 0, PING */
 function mqttOpen(url, topic, onMsg, onUp){
-  const c = { url, ok:false, dead:false, ws:null, retry:0, timer:0, ping:0 };
+  const c = { url, ok:false, dead:false, ws:null, retry:0, timer:0, ping:0, opened:false };
+  let wsUrl = url, user = '', pass = '';
+  try{
+    const u = new URL(url);
+    user = decodeURIComponent(u.username); pass = decodeURIComponent(u.password);
+    if (user || pass){ u.username = ''; u.password = ''; wsUrl = u.href; }
+  }catch(e){}
   const str = x => { const b = te.encode(x); const o = new Uint8Array(b.length + 2); o[0] = b.length >> 8; o[1] = b.length & 255; o.set(b, 2); return o; };
   const pkt = (h, parts) => {
     const body = u8cat(parts), vl = []; let n = body.length;
@@ -829,11 +866,17 @@ function mqttOpen(url, topic, onMsg, onUp){
   function open(){
     if (c.dead) return;
     let ws;
-    try{ ws = new WebSocket(url, ['mqtt']); }catch(e){ return later(); }
+    try{ ws = new WebSocket(wsUrl, ['mqtt']); }catch(e){ return later(); }
     c.ws = ws; ws.binaryType = 'arraybuffer'; buf = new Uint8Array(0);
     const cid = 'racia' + rnd(12, 'abcdefghijklmnopqrstuvwxyz0123456789');
     const kill = setTimeout(() => { if (c.ws === ws && !c.ok){ try{ ws.close(); }catch(e){} } }, 10000);
-    ws.onopen = () => { try{ ws.send(pkt(0x10, [str('MQTT'), Uint8Array.of(4, 2, 0, 60), str(cid)])); }catch(e){} };
+    ws.onopen = () => {
+      c.opened = true;
+      const parts = [str('MQTT'), Uint8Array.of(4, 0x02 | (user ? 0x80 : 0) | (pass ? 0x40 : 0), 0, 60), str(cid)];
+      if (user) parts.push(str(user));
+      if (pass) parts.push(str(pass));
+      try{ ws.send(pkt(0x10, parts)); }catch(e){}
+    };
     ws.onmessage = e => { if (c.ws !== ws) return; buf = u8cat([buf, new Uint8Array(e.data)]); try{ parse(ws); }catch(err){ try{ ws.close(); }catch(_){} } };
     ws.onclose = ws.onerror = () => {
       clearTimeout(kill);
@@ -841,6 +884,11 @@ function mqttOpen(url, topic, onMsg, onUp){
       c.ws = null; c.ok = false; clearInterval(c.ping); later();
     };
   }
+  c.kick = () => {
+    if (c.dead || c.ok) return;
+    if (c.ws && c.ws.readyState <= 1) return;
+    clearTimeout(c.timer); c.retry = 0; open();
+  };
   c.publish = (t, payload) => {
     const ws = c.ws;
     if (!c.ok || !ws || ws.readyState !== 1 || ws.bufferedAmount > 128 * 1024) return;
@@ -872,7 +920,7 @@ async function relayStart(role, code){
   relayStop();
   if (!relayCanRun()) return;
   const gen = ++R.gen;
-  R.active = true; R.role = role; R.code = code;
+  R.active = true; R.role = role; R.code = code; R.t0 = Date.now(); R.warned = false;
   try{
     const base = 'racia/v1/' + (await sha256hex('racia-relay:' + code)).slice(0, 32);
     await relayCaps();
@@ -1240,6 +1288,75 @@ function relayAudioStop(){
   }
 }
 
+/* ---------- проверка связи ---------- */
+function hostOf(url){ try{ return new URL(url).host; }catch(e){ return url; } }
+function testBroker(url){
+  return new Promise((res, rej) => {
+    const t0 = performance.now(), tok = rnd(10);
+    const topic = 'racia/test/' + rnd(16, 'abcdefghijklmnopqrstuvwxyz0123456789');
+    let done = false, c = null, timer = 0;
+    const fin = (ok, v) => { if (done) return; done = true; clearTimeout(timer); if (c) c.close(); ok ? res(v) : rej(v); };
+    c = mqttOpen(url, topic, msg => { if (td.decode(msg) === tok) fin(true, Math.round(performance.now() - t0) + ' мс'); }, cc => cc.publish(topic, te.encode(tok)));
+    timer = setTimeout(() => fin(false, c.opened ? 'не отвечает' : 'недоступен'), 9000);
+  });
+}
+function testPeerServer(){
+  return new Promise((res, rej) => {
+    if (typeof Peer === 'undefined') return rej('не загрузился');
+    const t0 = performance.now(); let p;
+    try{ p = new Peer(PREFIX + 't' + rnd(12, 'abcdefghijkmnpqrstuvwxyz23456789'), Object.assign({debug:0}, serverOpts())); }catch(e){ return rej('ошибка'); }
+    const timer = setTimeout(() => { try{ p.destroy(); }catch(e){} rej('недоступен'); }, 9000);
+    p.on('open', () => { clearTimeout(timer); res(Math.round(performance.now() - t0) + ' мс'); setTimeout(() => { try{ p.destroy(); }catch(e){} }, 200); });
+    p.on('error', e => { clearTimeout(timer); try{ p.destroy(); }catch(_){} rej('недоступен'); });
+  });
+}
+async function testIce(relay){
+  const list = iceServers().filter(x => [].concat(x.urls).some(u => relay ? /^turns?:/i.test(u) : /^stun:/i.test(u)));
+  if (!list.length) throw 'не задан';
+  const pc = new RTCPeerConnection({iceServers:list, iceTransportPolicy: relay ? 'relay' : 'all'});
+  try{
+    pc.createDataChannel('t');
+    const want = relay ? 'relay' : 'srflx';
+    const found = new Promise(res => {
+      const t = setTimeout(() => res(false), 8000);
+      pc.onicecandidate = e => {
+        if (!e.candidate){ clearTimeout(t); res(false); return; }
+        if (((e.candidate.candidate || '').match(/ typ (\w+)/) || [])[1] === want){ clearTimeout(t); res(true); }
+      };
+    });
+    await pc.setLocalDescription(await pc.createOffer());
+    if (!(await found)) throw 'не отвечает';
+    return 'работает';
+  } finally { try{ pc.close(); }catch(e){} }
+}
+async function runDiag(){
+  const list = $('diagList'), rows = [];
+  list.textContent = ''; $('diagSum').hidden = true; $('btnDiagCopy').hidden = true; $('btnDiag').disabled = true;
+  const row = (name, kind) => {
+    const li = document.createElement('li');
+    const ic = document.createElement('span'), nm = document.createElement('span'), rs = document.createElement('span');
+    ic.className = rs.className = 'wait'; ic.textContent = '…'; nm.textContent = name; rs.textContent = 'проверяем';
+    li.append(ic, nm, rs); list.append(li);
+    const r = {name, kind, ok:null, info:''}; rows.push(r);
+    return p => p.then(v => [true, v], e => [false, typeof e === 'string' ? e : 'ошибка']).then(([ok, v]) => {
+      r.ok = ok; r.info = v; ic.className = rs.className = ok ? 'ok' : 'bad'; ic.textContent = ok ? '✓' : '✗'; rs.textContent = v;
+    });
+  };
+  const jobs = [row('Поиск по коду: ' + (pref('server') ? hostOf(pref('server')) : '0.peerjs.com'), 'peer')(testPeerServer())];
+  for (const u of relayList()) jobs.push(row('Ретранслятор голоса: ' + hostOf(u), 'relay')(testBroker(u)));
+  jobs.push(row('Прямая связь: внешний адрес (STUN)', 'stun')(testIce(false)));
+  jobs.push(row('Прямая связь: ретранслятор TURN', 'turn')(testIce(true)));
+  await Promise.all(jobs);
+  const rel = rows.filter(r => r.kind === 'relay'), relOk = rel.filter(r => r.ok);
+  const sum = relOk.length
+    ? 'Связь через сервер должна работать: отвечает ' + relOk.length + ' из ' + rel.length + '. Для разговора нужно, чтобы хотя бы один и тот же ретранслятор отвечал у вас обоих.'
+    : 'Ни один ретранслятор голоса не отвечает из этой сети. Попробуйте другую сеть, например мобильный интернет вместо Wi-Fi.';
+  $('diagSum').textContent = sum; $('diagSum').hidden = false;
+  $('btnDiagCopy').hidden = false; $('btnDiag').disabled = false;
+  S.diagText = 'Рация, версия ' + VERSION + ', проверка ' + new Date().toLocaleString('ru-RU') + '\n' +
+    rows.map(r => (r.ok ? '✓ ' : '✗ ') + r.name + ' — ' + r.info).join('\n') + '\n' + sum;
+}
+
 /* ---------- связь без сервера: обмен кодами ---------- */
 function toB64(bytes){ let s = ''; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
   return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
@@ -1590,7 +1707,28 @@ async function grabWake(){
   try{ if ('wakeLock' in navigator && document.visibilityState === 'visible') S.wake = await navigator.wakeLock.request('screen'); }catch(e){}
 }
 function releaseWake(){ try{ S.wake && S.wake.release(); }catch(e){} S.wake = null; }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.state === 'incall') grabWake(); });
+function wakeUpLinks(){
+  if (S.peer && S.peer.disconnected && !S.peer.destroyed){ try{ S.peer.reconnect(); }catch(e){} }
+  for (const c of R.conns) if (c.kick) c.kick();
+  if (S.role === 'guest' && S.state === 'connecting' && S.retryCall) setTimeout(S.retryCall, 800);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  wakeUpLinks();
+  if (S.state === 'incall') grabWake();
+});
+window.addEventListener('online', wakeUpLinks);
+/* сколько серверов-ретрансляторов отвечает — видно на экране, пока ждём друга */
+setInterval(() => {
+  if (!R.active || R.mode === 'relay' || (S.state !== 'waiting' && S.state !== 'connecting')) return;
+  const up = R.conns.filter(c => c.ok).length, n = R.conns.length;
+  if (!n) return;
+  $('route').textContent = 'серверы: ' + up + ' из ' + n;
+  if (S.role === 'guest' && S.state === 'connecting' && !up && !R.warned && Date.now() - R.t0 > 10000){
+    R.warned = true;
+    setStatus('Серверы-ретрансляторы не отвечают из вашей сети. Откройте «Проверка связи» внизу.', 'err');
+  }
+}, 1000);
 function isWeb(){ return /^https?:$/.test(location.protocol); }
 function inviteLink(){ return (isWeb() ? location.origin + location.pathname : HOME) + '#' + S.code; }
 function inviteText(){ return 'Заходи в Рацию, поговорим: ' + inviteLink() + ' (код канала ' + fmt(S.code) + ')'; }
@@ -1624,6 +1762,8 @@ $('btnSound').onclick = () => { $('remote').play().then(() => { $('btnSound').hi
 $('vol').value = pref('vol') || 100;
 $('vol').oninput = e => { $('remote').volume = e.target.value / 100; pref('vol', e.target.value); };
 $('micSel').onchange = e => switchMic(e.target.value);
+$('btnDiag').onclick = () => { runDiag().catch(() => { $('btnDiag').disabled = false; }); };
+$('btnDiagCopy').onclick = e => S.diagText && copyText(S.diagText, e.currentTarget);
 $('btnCap').onclick = () => { cap.on = !cap.on; pref('cap2', cap.on ? '1' : '0'); cap.msg = ''; capUI(); capSync(); capPreload(); };
 $('mStartA').onclick = manualStartA;
 $('mStartB').onclick = manualStartB;
@@ -1662,6 +1802,7 @@ window.addEventListener('hashchange', readHash);
     f.append(a);
   }
   if (!window.RTCPeerConnection){ toIdle('Этот браузер не поддерживает голосовую связь. Откройте программу в Chrome, Яндекс Браузере, Edge или Firefox.', 'err'); return; }
+  $('fine').append(' Версия ' + VERSION + '.');
   setChan('— — —'); setStatus('Создайте канал или введите код друга');
   readHash();
 })();
