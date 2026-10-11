@@ -297,7 +297,9 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
       <label class="field" for="micSel">Микрофон
         <select id="micSel"><option value="">По умолчанию</option></select></label>
       <label class="check" for="fRelay"><input type="checkbox" id="fRelay">
-        <span>Всегда через сервер. Включите, если прямая связь у вас не проходит никогда: соединение будет быстрее. Достаточно включить у одного из вас.</span></label>
+        <span>Не пробовать прямую связь, говорить только через сервер. Включите, если звук прерывается при переходе на прямую связь.</span></label>
+      <label class="check" for="fHp"><input type="checkbox" id="fHp">
+        <span>Я в наушниках. Задержка станет меньше, но без наушников будет эхо. Применяется к следующему разговору.</span></label>
       <label class="field" for="rUrl">Серверы-ретрансляторы голоса (MQTT по WebSocket, через запятую). Пустое поле — общие серверы.
         <input id="rUrl" placeholder="wss://broker.emqx.io:8084/mqtt" autocomplete="off"></label>
       <p class="note">Свой TURN-сервер нужен, только если связь не устанавливается ни по коду, ни без сервера (строгий NAT, мобильный интернет). Укажите одинаково у обоих.</p>
@@ -327,7 +329,7 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
 <script>
 'use strict';
 const PREFIX = 'racia-v1-';
-const VERSION = '5 · 11.10.2026';
+const VERSION = '6 · 11.10.2026';
 const HOME = 'https://eshipptv-sys.github.io/lost/';
 const MODEL = { key:'ru-small-0.22', file:'vosk/vosk-model-small-ru-0.22.tar.gz', bytes:46236562, mb:44 };
 const ASSET = p => new URL(p, isWeb() ? location.href : HOME).href;
@@ -458,9 +460,9 @@ function stopAll(){
 }
 function remoteGone(kind){
   /* после перехода на сервер сбои прямого канала больше не важны */
-  if (R.mode === 'relay' && kind !== 'left' && kind !== 'relay-lost') return;
+  if (onRelay() && kind !== 'left' && kind !== 'relay-lost') return;
   /* прямой канал не прошёл или оборвался, а связь через сервер есть — переключаемся */
-  if (kind !== 'left' && S.mode === 'peer' && R.established && R.mode !== 'relay'){ enterRelay(true); return; }
+  if (kind !== 'left' && S.mode === 'peer' && R.established && !onRelay()){ enterRelay(true); return; }
   /* прямой канал не прошёл, сервер ещё ищет друга — ждём, не сдаёмся */
   if (kind !== 'left' && S.mode === 'peer' && S.state !== 'incall' && relayAlive() && !R.established){
     p2pDrop();
@@ -541,11 +543,12 @@ async function switchMic(id){
     const c = micConstraints(); c.audio.deviceId = {exact:id};
     const ns = await navigator.mediaDevices.getUserMedia(c);
     const nt = ns.getAudioTracks()[0];
-    const pc = currentPC();
-    if (pc) for (const s of pc.getSenders()) if (s.track && s.track.kind === 'audio') await s.replaceTrack(nt);
+    for (const pc of new Set([currentPC(), UP.pc].filter(Boolean)))
+      for (const s of pc.getSenders()) if (s.track && s.track.kind === 'audio') await s.replaceTrack(nt);
     S.localStream.getTracks().forEach(t => t.stop());
     if (S.localMeter) S.localMeter.disconnect();
     S.localStream = ns; S.localMeter = makeMeter(ns);
+    if (R.tx) txStart();
     voskDetach();
     if (cap.rec){ const r = cap.rec; cap.rec = null; try{ r.abort(); }catch(e){} }
     applyMute();
@@ -581,7 +584,11 @@ const lv = {me:0, friend:0};
 })();
 
 /* ---------- звук друга и состояние соединения ---------- */
-function currentPC(){ return S.mode === 'manual' ? S.pc : (S.call && S.call.peerConnection); }
+function currentPC(){
+  if (S.mode === 'manual') return S.pc;
+  if (S.call) return S.call.peerConnection;
+  return R.mode === 'up' ? UP.pc : null;
+}
 function useRemote(stream, pc){
   if (!stream || S.remoteStream === stream) return;
   S.remoteStream = stream;
@@ -686,7 +693,7 @@ function wireDc(pc, ch){
 function peerError(peer, err){
   if (S.peer !== peer) return;
   /* разговор уже идёт — запоздалые ошибки сервера поиска его не касаются */
-  if (S.state === 'incall' || R.mode === 'relay') return;
+  if (S.state === 'incall' || onRelay()) return;
   const down = ['network','socket-error','socket-closed','server-error','disconnected'].includes(err.type);
   if (S.state === 'incall' && down) return;
   /* сервер прямой связи недоступен, но работает связь через сервер-ретранслятор */
@@ -708,7 +715,7 @@ function attachCall(call){
   call.on('stream', st => { if (S.call === call) useRemote(st, call.peerConnection); });
   call.on('close', () => {
     if (S.call !== call) return;
-    if (R.established) setTimeout(() => { if (S.call === call && R.mode !== 'relay') remoteGone('left'); }, 1500);
+    if (R.established) setTimeout(() => { if (S.call === call && !onRelay()) remoteGone('left'); }, 1500);
     else remoteGone('left');
   });
   call.on('error', () => { if (S.call === call) remoteGone('failed'); });
@@ -737,13 +744,13 @@ function openChannel(attempt){
   peer.on('open', () => { if (S.peer === peer) toWaiting(); });
   peer.on('call', call => {
     if (S.peer !== peer) return;
-    if (R.mode === 'relay'){ try{ call.close(); }catch(e){} return; }
+    if (onRelay()){ try{ call.close(); }catch(e){} return; }
     if (S.call) p2pDrop();
     attachCall(call);
     call.answer(S.localStream);
     setStatus('Друг подключается…');
   });
-  peer.on('connection', conn => { if (S.peer === peer && conn.label === 'ctl' && R.mode !== 'relay') wirePeerCtl(conn); });
+  peer.on('connection', conn => { if (S.peer === peer && conn.label === 'ctl' && !onRelay()) wirePeerCtl(conn); });
   peer.on('disconnected', () => {
     setTimeout(() => { try{ if (S.peer === peer && peer.disconnected && !peer.destroyed) peer.reconnect(); }catch(e){} }, 1500);
   });
@@ -769,7 +776,7 @@ async function joinChannel(){
   if (typeof Peer === 'undefined' || pref('forceRelay') === '1') return;
   const peer = S.peer = makePeer(PREFIX + 'g' + rnd(12, 'abcdefghijkmnpqrstuvwxyz23456789'));
   const tryCall = () => {
-    if (S.peer !== peer || S.state === 'incall' || R.mode === 'relay' || peer.disconnected) return;
+    if (S.peer !== peer || S.state === 'incall' || onRelay() || peer.disconnected) return;
     p2pDrop();
     const call = peer.call(PREFIX + code, S.localStream);
     if (!call) return;
@@ -798,7 +805,8 @@ const RELAYS_DEFAULT = [
 ];
 const R = { gen:0, active:false, role:null, code:null, base:'', conns:[], kp:null, pub:null, sid:'', peerSid:'',
   key:null, established:false, mode:'none', opusOK:null, peerOpus:false, useOpus:false, idOut:0, seen:new Map(),
-  txSeq:0, rxSeq:-1, lastRx:0, helloT:0, p2pT:0, pingT:0, statT:0, tx:null, rx:null, t0:0, warned:false };
+  txSeq:0, rxSeq:-1, lastRx:0, helloT:0, p2pT:0, pingT:0, statT:0, tx:null, rx:null, t0:0, warned:false,
+  audioGen:0, txVia:true, wk:false, rttBest:0, probeT:0, peerLinks:null };
 const te = new TextEncoder(), td = new TextDecoder();
 
 function u8cat(parts){
@@ -861,7 +869,7 @@ function mqttOpen(url, topic, onMsg, onUp){
       } else if (type === 3){
         const tl = (body[0] << 8) | body[1];
         let k = 2 + tl; if ((h >> 1) & 3) k += 2;
-        onMsg(body.subarray(k));
+        onMsg(body.subarray(k), c);
       }
     }
   };
@@ -934,12 +942,36 @@ async function relayStart(role, code){
   R.sid = rnd(10, 'abcdefghijkmnpqrstuvwxyz23456789');
   const mine = R.base + '/' + role;
   R.conns = relayList().slice(0, 6).map(u => mqttOpen(u, mine, relayRx, relayConnUp));
+  clearInterval(R.probeT);
+  R.probeT = setInterval(relayProbe, 3000);
+  setTimeout(relayProbe, 1200);
   clearInterval(R.helloT);
   R.helloT = setInterval(() => {
     if (!R.active || R.established) return;
     relayHello();
     if (R.key) relaySendCtl({t:'ready'});
   }, 1500);
+}
+/* замер скорости каждого сервера: пакет самому себе и обратно */
+function relayProbe(){
+  if (!R.active || !R.base) return;
+  const me = R.base + '/' + R.role;
+  for (const c of R.conns){
+    if (!c.ok) continue;
+    const b = new Uint8Array(9); b[0] = 0x7F; new DataView(b.buffer).setFloat64(1, performance.now());
+    c.publish(me, b);
+  }
+}
+function relayScore(c){ const p = R.peerLinks; return (c.rtt || 400) + (p && p[c.url] !== undefined ? p[c.url] : 400); }
+/* голос шлём только через общие для обоих и самые быстрые серверы */
+function relayAudioConns(){
+  const ok = R.conns.filter(c => c.ok);
+  if (!ok.length) return ok;
+  const p = R.peerLinks;
+  let cand = ok;
+  if (p){ const both = ok.filter(c => p[c.url] !== undefined); if (both.length) cand = both; }
+  const best = Math.min(...cand.map(relayScore));
+  return cand.filter(c => relayScore(c) <= best * 1.5 + 80);
 }
 function relayConnUp(){
   if (!R.active) return;
@@ -948,6 +980,7 @@ function relayConnUp(){
 }
 function relayResetPeer(){
   clearTimeout(R.p2pT);
+  upReset(); R.peerLinks = null;
   relayAudioStop();
   R.key = null; R.peerSid = ''; R.established = false; R.mode = 'none';
   R.seen.clear(); R.rxSeq = -1;
@@ -955,7 +988,7 @@ function relayResetPeer(){
 function relayStop(){
   R.gen++;
   relayResetPeer();
-  clearInterval(R.helloT);
+  clearInterval(R.helloT); clearInterval(R.probeT);
   const old = R.conns; R.conns = [];
   if (old.length) setTimeout(() => old.forEach(c => c.close()), 400);
   R.active = false; R.kp = null; R.pub = null;
@@ -972,9 +1005,9 @@ function relayHello(){
   const p2p = S.peer && S.peer.open && !S.peer.disconnected && pref('forceRelay') !== '1' ? 1 : 0;
   relayPublish(u8cat([Uint8Array.of(0), te.encode(JSON.stringify({s:R.sid, k:b64(R.pub), o:R.opusOK ? 1 : 0, p:p2p}))]));
 }
-async function relaySend(type, payload, force){
+async function relaySend(type, payload, force, only){
   const key = R.key; if (!key) return;
-  const conns = R.conns, t = relayTarget();
+  const conns = only || R.conns, t = relayTarget();
   const idb = new Uint8Array(4); R.idOut = (R.idOut + 1) >>> 0; new DataView(idb.buffer).setUint32(0, R.idOut);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv, additionalData:idb}, key, u8cat([Uint8Array.of(type), payload])));
@@ -982,8 +1015,15 @@ async function relaySend(type, payload, force){
 }
 function relaySendCtl(obj, force){ relaySend(2, te.encode(JSON.stringify(obj)), force).catch(() => {}); }
 
-async function relayRx(bytes){
+async function relayRx(bytes, c){
   if (!R.active || !bytes.length) return;
+  if (bytes[0] === 0x7F){
+    if (c && bytes.length >= 9){
+      const rtt = performance.now() - new DataView(bytes.buffer, bytes.byteOffset + 1, 8).getFloat64(0);
+      if (rtt >= 0 && rtt < 20000) c.rtt = c.rtt ? c.rtt * 0.6 + rtt * 0.4 : rtt;
+    }
+    return;
+  }
   if (bytes[0] === 0) return relayHelloRx(bytes);
   if (bytes[0] !== 0xE1 || !R.key || bytes.length < 34) return;
   const id = ((bytes[1] << 24) | (bytes[2] << 16) | (bytes[3] << 8) | bytes[4]) >>> 0;
@@ -1008,7 +1048,7 @@ async function relayHelloRx(bytes){
   if (!d || typeof d.s !== 'string' || typeof d.k !== 'string' || d.s === R.peerSid || !R.kp) return;
   /* занят живым разговором — чужие приветствия не принимаем */
   if (R.established && Date.now() - R.lastRx < 8000) return;
-  if (R.established){ const wasRelay = R.mode === 'relay'; relayResetPeer(); if (wasRelay && S.state === 'incall') return remoteGone('relay-lost'); }
+  if (R.established){ const wasRelay = onRelay(); relayResetPeer(); if (wasRelay && S.state === 'incall') return remoteGone('relay-lost'); }
   const kp = R.kp;
   R.peerSid = d.s;
   try{
@@ -1028,11 +1068,19 @@ function relayCtl(d){
     if (d.m === 'relay') enterRelay(false);
     else if (d.m === 'p2p' && R.mode === 'none') R.mode = 'p2p';
   } else if (d.t === 'bye'){
-    const active = S.state === 'incall' || S.state === 'connecting' || R.mode === 'relay';
+    const active = S.state === 'incall' || S.state === 'connecting' || onRelay();
     relayResetPeer();
     if (active) remoteGone('left');
   } else if (d.t === 'cap'){
-    if (R.mode === 'relay') capRecv(d);
+    if (onRelay()) capRecv(d);
+  } else if (d.t === 'sdp'){
+    upOnSdp(d);
+  } else if (d.t === 'ice'){
+    upOnIce(d);
+  } else if (d.t === 'up'){
+    upOnUp(d);
+  } else if (d.t === 'links'){
+    if (Array.isArray(d.l)){ const m = {}; for (const x of d.l) if (Array.isArray(x) && typeof x[0] === 'string') m[x[0]] = +x[1] || 400; R.peerLinks = m; }
   }
 }
 function p2pUp(){
@@ -1046,53 +1094,65 @@ function p2pDrop(){
   const c = ctls.get(call.peer); ctls.delete(call.peer);
   try{ c && c.close(); }catch(e){}
   try{ call.close(); }catch(e){}
-  if (S.remoteStream && R.mode !== 'relay'){
+  if (S.remoteStream && !onRelay()){
     S.remoteStream = null; $('remote').srcObject = null;
     if (S.remoteMeter) S.remoteMeter.disconnect(); S.remoteMeter = null;
   }
 }
+function onRelay(){ return R.mode === 'relay' || R.mode === 'up'; }
 function relayLinked(){
   R.lastRx = Date.now();
-  if (R.mode === 'relay') return;
+  if (onRelay()) return;
   if (p2pUp() && S.state === 'incall'){ R.mode = 'p2p'; relaySendCtl({t:'mode', m:'p2p'}); return; }
-  /* у кого-то из двоих нет сервера поиска по коду — прямая связь невозможна, ждать нечего */
-  const myP2P = !!(S.peer && S.peer.open && !S.peer.disconnected);
-  const force = pref('forceRelay') === '1' || !R.peerP2P || !myP2P;
-  if (S.role === 'guest'){
-    if (S.state !== 'incall') setStatus('Друг найден. Соединяемся…');
-    clearTimeout(R.p2pT);
-    R.p2pT = setTimeout(() => {
-      if (R.established && R.mode !== 'relay' && !(p2pUp() && S.state === 'incall')) enterRelay(true);
-    }, force ? 0 : 7000);
-  } else {
-    if (force) enterRelay(true);
-    else if (S.state !== 'incall') setStatus('Друг подключается…');
-  }
+  /* сразу говорим через сервер, а прямой канал поднимаем параллельно — так быстрее всего */
+  enterRelay(true);
 }
 async function enterRelay(initiator){
-  if (R.mode === 'relay' || !R.established || S.mode !== 'peer') return;
-  R.mode = 'relay';
+  if (onRelay() || !R.established || S.mode !== 'peer') return;
+  R.mode = 'relay'; R.txVia = true;
   clearTimeout(R.p2pT); clearTimeout(S.joinTimer);
   if (initiator) relaySendCtl({t:'mode', m:'relay'});
   p2pDrop();
   if (!S.localStream){ try{ await ensureMic(); }catch(e){ return failMic(e); } }
   ensureAudioCtx();
-  relayAudioStart();
+  await relayAudioStart();
+  if (!onRelay()) return;
   if (S.state !== 'incall') toCall(); else setStatus('На связи', 'ok');
-  $('route').textContent = 'через сервер';
+  relayRoute();
   clearInterval(R.pingT);
   R.pingT = setInterval(() => {
-    if (R.mode !== 'relay') return;
+    if (!onRelay()) return;
     relaySendCtl({t:'ping'});
-    if (Date.now() - R.lastRx > 12000) remoteGone('relay-lost');
+    const directAlive = R.mode === 'up' && UP.selfUp;
+    if (!directAlive && Date.now() - R.lastRx > 12000) remoteGone('relay-lost');
   }, 2000);
   clearInterval(R.statT);
-  R.statT = setInterval(() => {
-    const jb = R.rx; if (!jb) return;
+  R.statT = setInterval(relayTick, 1000);
+  UP.tries = 0;
+  if (UP.pendingOffer){ const d = UP.pendingOffer; UP.pendingOffer = null; upOnSdp(d); }
+  if (S.role === 'guest'){ clearTimeout(UP.retryT); UP.retryT = setTimeout(upStart, 600); }
+}
+function relayRoute(){
+  if (R.mode !== 'relay') return;
+  const jb = R.rx;
+  const est = (R.rttBest || 150) + (jb ? jb.targetMs : 80) + 40 + (jb && jb.loop ? 30 : 0);
+  $('route').textContent = 'через сервер · ~' + Math.round(est / 10) * 10 + ' мс' + (R.useOpus ? '' : ' · эконом');
+}
+function relayTick(){
+  const jb = R.rx; if (!jb || !S.ac) return;
+  /* буфер подстраивается под реальные рывки сети: чем ровнее сеть, тем меньше задержка */
+  if (jb.lat.length >= 10){
+    const s = jb.lat.slice().sort((a, b) => a - b);
+    const ms = Math.max(40, Math.min(300, Math.round(s[Math.floor((s.length - 1) * 0.95)] + 25)));
+    if (Math.abs(ms - jb.targetMs) >= 5){ jb.targetMs = ms; jb.setTarget(Math.round(S.ac.sampleRate * ms / 1000)); }
+  }
+  if (jb.ticks % 5 === 0) relaySendCtl({t:'links', l:R.conns.filter(c => c.ok).map(c => [c.url, Math.round(c.rtt || 400)])});
+  const ac2 = relayAudioConns(); R.rttBest = ac2.length ? Math.min(...ac2.map(relayScore)) / 2 : 0;
+  if (++jb.ticks % 2 === 0){
     const u = jb.under; jb.under = 0;
-    setBars(u > 6 ? 1 : u > 2 ? 2 : u > 0 ? 3 : 4);
-    $('route').textContent = 'через сервер' + (R.useOpus ? '' : ' · эконом-звук');
-  }, 2000);
+    if (R.mode === 'relay') setBars(u > 6 ? 1 : u > 2 ? 2 : u > 0 ? 3 : 4);
+  }
+  relayRoute();
 }
 
 /* ---------- звук через сервер: кодирование, буфер, воспроизведение ---------- */
@@ -1133,7 +1193,7 @@ function ulawToLin(u){
 function relaySendAudio(codec, body){
   R.txSeq = (R.txSeq + 1) >>> 0;
   const h = new Uint8Array(5); h[0] = codec; new DataView(h.buffer).setUint32(1, R.txSeq);
-  relaySend(1, u8cat([h, body])).catch(() => {});
+  relaySend(1, u8cat([h, body]), false, relayAudioConns()).catch(() => {});
 }
 function txFlushOpus(tx){
   const ch = tx.chunks; tx.chunks = [];
@@ -1170,17 +1230,100 @@ async function loopback(stream){
     return null;
   }
 }
-function relayAudioStart(){
+
+/* буфер воспроизведения: один и тот же код работает в аудиопотоке (AudioWorklet) и запасным путём */
+const PLAYER_SRC = `class PlayerCore{
+  constructor(rate){ this.rate = rate; this.q = []; this.len = 0; this.started = false; this.target = Math.round(rate * 0.08); this.over = 0; }
+  push(f){ if (f && f.length){ this.q.push(f); this.len += f.length; } }
+  drop(k){ while (k > 0 && this.q.length){ const h = this.q[0], off = h.off || 0, n = Math.min(k, h.length - off); k -= n; this.len -= n; if (off + n >= h.length) this.q.shift(); else h.off = off + n; } }
+  fill(out){
+    const N = out.length;
+    if (this.len > this.target + this.rate * 0.25) this.drop(this.len - this.target);
+    if (!this.started){ if (this.len >= this.target) this.started = true; else { out.fill(0); return false; } }
+    if (this.len > this.target + this.rate * 0.04){ if (++this.over * N > this.rate * 0.12){ this.drop(Math.round(this.rate * 0.01)); this.over = 0; } } else this.over = 0;
+    let o = 0;
+    while (o < N && this.q.length){ const h = this.q[0], off = h.off || 0, n = Math.min(N - o, h.length - off); out.set(h.subarray(off, off + n), o); o += n; this.len -= n; if (off + n >= h.length) this.q.shift(); else h.off = off + n; }
+    if (o < N){ out.fill(0, o); this.started = false; return true; }
+    return false;
+  }
+}`;
+const WORKLET_SRC = PLAYER_SRC + `
+class RaciaPlay extends AudioWorkletProcessor{
+  constructor(){ super(); this.p = new PlayerCore(sampleRate); this.port.onmessage = e => { const d = e.data; if (d.pcm) this.p.push(d.pcm); else if (d.target) this.p.target = d.target; }; }
+  process(i, outputs){ const out = outputs[0] && outputs[0][0]; if (out && this.p.fill(out)) this.port.postMessage(1); return true; }
+}
+class RaciaCap extends AudioWorkletProcessor{
+  constructor(){ super(); this.n = Math.round(sampleRate / 50); this.b = new Float32Array(this.n); this.k = 0; }
+  process(inputs){
+    const ch = inputs[0] && inputs[0][0];
+    if (ch) for (let i = 0; i < ch.length; i++){ this.b[this.k++] = ch[i]; if (this.k === this.n){ this.port.postMessage(this.b, [this.b.buffer]); this.b = new Float32Array(this.n); this.k = 0; } }
+    return true;
+  }
+}
+registerProcessor('racia-play', RaciaPlay);
+registerProcessor('racia-cap', RaciaCap);`;
+let PlayerCoreMain = null;
+function playerCore(rate){
+  if (!PlayerCoreMain) PlayerCoreMain = new Function(PLAYER_SRC + '\nreturn PlayerCore;')();
+  return new PlayerCoreMain(rate);
+}
+const wkReady = new WeakMap();
+function ensureWorklet(ac){
+  if (!ac.audioWorklet || typeof AudioWorkletNode === 'undefined') return Promise.reject(new Error('нет AudioWorklet'));
+  if (!wkReady.has(ac)){
+    const url = URL.createObjectURL(new Blob([WORKLET_SRC], {type:'application/javascript'}));
+    wkReady.set(ac, ac.audioWorklet.addModule(url));
+  }
+  return wkReady.get(ac);
+}
+
+async function relayAudioStart(){
   relayAudioStop();
   const ac = S.ac; if (!ac || !S.localStream) return;
+  const gen = ++R.audioGen;
   R.useOpus = !!(R.opusOK && R.peerOpus);
+  let wk = false;
+  try{ await Promise.race([ensureWorklet(ac), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 2000))]); wk = true; }catch(e){}
+  if (gen !== R.audioGen || !onRelay()) return;
+  R.wk = wk;
+  txStart();
 
-  /* отправка */
-  const tx = { src:ac.createMediaStreamSource(S.localStream), node:ac.createScriptProcessor(2048, 1, 1), enc:null, chunks:[], ts:0, ul:[], ulLen:0, rs:null };
+  /* приём */
+  const jb = { node:null, under:0, dec:null, ts:0, rs8:makeResampler(8000, ac.sampleRate), rs48:makeResampler(48000, ac.sampleRate),
+    loop:null, sink:null, out:null, targetMs:80, ticks:0, lat:[], spMin:Infinity, lastArr:0, lastSeq:-1 };
+  if (wk){
+    jb.node = new AudioWorkletNode(ac, 'racia-play', {numberOfInputs:0, numberOfOutputs:1, outputChannelCount:[1]});
+    jb.node.port.onmessage = () => { jb.under++; };
+    jb.push = f => { try{ jb.node.port.postMessage({pcm:f}, [f.buffer]); }catch(e){ try{ jb.node.port.postMessage({pcm:f}); }catch(_){} } };
+    jb.setTarget = s => jb.node.port.postMessage({target:s});
+  } else {
+    const core = playerCore(ac.sampleRate);
+    jb.node = ac.createScriptProcessor(1024, 1, 1);
+    jb.node.onaudioprocess = e => { if (core.fill(e.outputBuffer.getChannelData(0))) jb.under++; };
+    jb.push = f => core.push(f);
+    jb.setTarget = s => { core.target = s; };
+  }
+  jb.setTarget(Math.round(ac.sampleRate * jb.targetMs / 1000));
+  const dest = ac.createMediaStreamDestination();
+  jb.node.connect(dest);
+  jb.sink = ac.createGain(); jb.sink.gain.value = 0; jb.node.connect(jb.sink); jb.sink.connect(ac.destination);
+  R.rx = jb;
+  jb.out = dest.stream;
+  if (pref('headphones') === '1'){ if (R.mode !== 'up') useRemote(jb.out, null); return; }
+  loopback(dest.stream).then(lp => {
+    if (R.rx !== jb){ if (lp) lp.close(); return; }
+    jb.loop = lp; if (lp) jb.out = lp.stream;
+    if (R.mode !== 'up') useRemote(jb.out, null);
+  });
+}
+function txStart(){
+  const ac = S.ac; if (!ac || !S.localStream) return;
+  txStop();
+  const tx = { src:ac.createMediaStreamSource(S.localStream), node:null, enc:null, chunks:[], ts:0, ul:new Float32Array(0), rs:null, sink:null };
   if (R.useOpus){
     try{
       tx.enc = new AudioEncoder({
-        output: ch => { const b = new Uint8Array(ch.byteLength); ch.copyTo(b); tx.chunks.push(b); if (tx.chunks.length >= 3) txFlushOpus(tx); },
+        output: ch => { const b = new Uint8Array(ch.byteLength); ch.copyTo(b); tx.chunks.push(b); if (tx.chunks.length >= 2) txFlushOpus(tx); },
         error: () => { tx.enc = null; tx.rs = makeResampler(ac.sampleRate, 8000); }
       });
       tx.enc.configure({codec:'opus', sampleRate:48000, numberOfChannels:1, bitrate:24000});
@@ -1188,71 +1331,63 @@ function relayAudioStart(){
     }catch(e){ tx.enc = null; }
   }
   if (!tx.enc){ R.useOpus = false; tx.rs = makeResampler(ac.sampleRate, 8000); }
-  tx.node.onaudioprocess = e => {
-    if (R.tx !== tx || R.mode !== 'relay' || S.muted) return;
-    const pcm = tx.rs(e.inputBuffer.getChannelData(0));
-    if (!pcm.length) return;
-    if (tx.enc){
-      try{
-        const ad = new AudioData({format:'f32-planar', sampleRate:48000, numberOfFrames:pcm.length, numberOfChannels:1,
-          timestamp:Math.round(tx.ts * 1e6 / 48000), data:pcm.slice()});
-        tx.ts += pcm.length; tx.enc.encode(ad); ad.close();
-      }catch(err){}
-    } else {
-      const u = new Uint8Array(pcm.length);
-      for (let i = 0; i < pcm.length; i++) u[i] = linToUlaw(Math.max(-32767, Math.min(32767, Math.round(pcm[i] * 32767))));
-      tx.ul.push(u); tx.ulLen += u.length;
-      if (tx.ulLen >= 480){ const body = u8cat(tx.ul); tx.ul = []; tx.ulLen = 0; relaySendAudio(2, body); }
-    }
-  };
+  const feed = x => { if (R.tx === tx && onRelay() && R.txVia && !S.muted) txPush(tx, x); };
+  if (R.wk){
+    tx.node = new AudioWorkletNode(ac, 'racia-cap', {numberOfInputs:1, numberOfOutputs:1, outputChannelCount:[1]});
+    tx.node.port.onmessage = e => feed(e.data);
+  } else {
+    tx.node = ac.createScriptProcessor(1024, 1, 1);
+    tx.node.onaudioprocess = e => feed(e.inputBuffer.getChannelData(0).slice());
+  }
   tx.src.connect(tx.node);
-  const txSink = ac.createGain(); txSink.gain.value = 0; tx.node.connect(txSink); txSink.connect(ac.destination); tx.sink = txSink;
+  tx.sink = ac.createGain(); tx.sink.gain.value = 0; tx.node.connect(tx.sink); tx.sink.connect(ac.destination);
   R.tx = tx;
-
-  /* приём: буфер против рывков сети ~150 мс */
-  const jb = { node:ac.createScriptProcessor(2048, 1, 1), q:[], len:0, started:false, under:0, dec:null, ts:0,
-    rs8:makeResampler(8000, ac.sampleRate), rs48:makeResampler(48000, ac.sampleRate), loop:null, sink:null };
-  const target = Math.round(ac.sampleRate * 0.15), cap = Math.round(ac.sampleRate * 0.45);
-  jb.node.onaudioprocess = e => {
-    const out = e.outputBuffer.getChannelData(0);
-    if (jb.len > cap){
-      while (jb.len > target && jb.q.length){ const h = jb.q.shift(); jb.len -= h.length - (h.off || 0); }
-    }
-    if (!jb.started){
-      if (jb.len >= target) jb.started = true;
-      else { out.fill(0); return; }
-    }
-    let o = 0;
-    while (o < out.length && jb.q.length){
-      const h = jb.q[0], off = h.off || 0, n = Math.min(out.length - o, h.length - off);
-      out.set(h.subarray(off, off + n), o); o += n; jb.len -= n;
-      if (off + n >= h.length) jb.q.shift(); else h.off = off + n;
-    }
-    if (o < out.length){ out.fill(0, o); jb.started = false; jb.under++; }
-  };
-  const dest = ac.createMediaStreamDestination();
-  jb.node.connect(dest);
-  jb.sink = ac.createGain(); jb.sink.gain.value = 0; jb.node.connect(jb.sink); jb.sink.connect(ac.destination);
-  R.rx = jb;
-  loopback(dest.stream).then(lp => {
-    if (R.rx !== jb){ if (lp) lp.close(); return; }
-    jb.loop = lp;
-    useRemote(lp ? lp.stream : dest.stream, null);
-  });
 }
-function jbPush(jb, f){ if (f && f.length){ jb.q.push(f); jb.len += f.length; } }
+function txPush(tx, x){
+  const pcm = tx.rs(x); if (!pcm.length) return;
+  if (tx.enc){
+    try{
+      const ad = new AudioData({format:'f32-planar', sampleRate:48000, numberOfFrames:pcm.length, numberOfChannels:1,
+        timestamp:Math.round(tx.ts * 1e6 / 48000), data:pcm});
+      tx.ts += pcm.length; tx.enc.encode(ad); ad.close();
+    }catch(e){}
+  } else {
+    /* эконом-звук: 8 кГц, μ-law, ровно 40 мс в пакете */
+    const all = new Float32Array(tx.ul.length + pcm.length); all.set(tx.ul); all.set(pcm, tx.ul.length);
+    let k = 0;
+    for (; k + 320 <= all.length; k += 320){
+      const u = new Uint8Array(320);
+      for (let i = 0; i < 320; i++) u[i] = linToUlaw(Math.max(-32767, Math.min(32767, Math.round(all[k + i] * 32767))));
+      relaySendAudio(2, u);
+    }
+    tx.ul = all.slice(k);
+  }
+}
+function txStop(){
+  const tx = R.tx; R.tx = null;
+  if (!tx) return;
+  try{ if (tx.node.port) tx.node.port.onmessage = null; tx.node.onaudioprocess = null; tx.node.disconnect(); tx.src.disconnect(); tx.sink && tx.sink.disconnect(); }catch(e){}
+  try{ tx.enc && tx.enc.state !== 'closed' && tx.enc.close(); }catch(e){}
+}
 function rxAudio(body){
   const jb = R.rx;
-  if (!jb || R.mode !== 'relay' || body.length < 6) return;
+  if (!jb || !onRelay() || body.length < 6) return;
   const codec = body[0];
   const seq = ((body[1] << 24) | (body[2] << 16) | (body[3] << 8) | body[4]) >>> 0;
   if (R.rxSeq >= 0 && seq <= R.rxSeq && R.rxSeq - seq < 100000) return;
   R.rxSeq = seq;
+  /* насколько пакет опоздал относительно ровного графика — по этому подстраиваем буфер */
+  const now = performance.now();
+  if (now - jb.lastArr > 400 || jb.lastSeq < 0 || seq < jb.lastSeq || seq - jb.lastSeq > 25) jb.spMin = Infinity;
+  const tr = now - seq * 40;
+  if (tr < jb.spMin) jb.spMin = tr;
+  jb.lat.push(tr - jb.spMin); if (jb.lat.length > 150) jb.lat.shift();
+  jb.lastArr = now; jb.lastSeq = seq;
   const data = body.subarray(5);
   if (codec === 2){
     const f = new Float32Array(data.length);
     for (let i = 0; i < data.length; i++) f[i] = ulawToLin(data[i]) / 32768;
-    jbPush(jb, jb.rs8(f));
+    jb.push(jb.rs8(f));
   } else if (codec === 1){
     if (!jb.dec){
       if (typeof AudioDecoder === 'undefined') return;
@@ -1262,7 +1397,7 @@ function rxAudio(body){
             const f = new Float32Array(ad.numberOfFrames);
             try{ ad.copyTo(f, {planeIndex:0, format:'f32-planar'}); }catch(e){ try{ ad.copyTo(f, {planeIndex:0}); }catch(_){} }
             ad.close();
-            if (R.rx === jb) jbPush(jb, jb.rs48(f));
+            if (R.rx === jb) jb.push(jb.rs48(f));
           },
           error: () => { if (jb.dec === dec) jb.dec = null; }
         });
@@ -1280,18 +1415,116 @@ function rxAudio(body){
   }
 }
 function relayAudioStop(){
-  const tx = R.tx, jb = R.rx; R.tx = null; R.rx = null;
+  R.audioGen++;
+  txStop();
+  const jb = R.rx; R.rx = null;
   clearInterval(R.pingT); clearInterval(R.statT);
-  if (tx){
-    try{ tx.node.onaudioprocess = null; tx.node.disconnect(); tx.src.disconnect(); tx.sink && tx.sink.disconnect(); }catch(e){}
-    try{ tx.enc && tx.enc.state !== 'closed' && tx.enc.close(); }catch(e){}
-  }
   if (jb){
-    try{ jb.node.onaudioprocess = null; jb.node.disconnect(); jb.sink && jb.sink.disconnect(); }catch(e){}
+    try{ if (jb.node.port) jb.node.port.onmessage = null; jb.node.onaudioprocess = null; jb.node.disconnect(); jb.sink && jb.sink.disconnect(); }catch(e){}
     try{ jb.dec && jb.dec.state !== 'closed' && jb.dec.close(); }catch(e){}
     try{ jb.loop && jb.loop.close(); }catch(e){}
   }
 }
+
+/* ---------- прямой канал поверх сервера ----------
+   Пока говорите через сервер, программа пробует открыть прямое WebRTC-соединение,
+   договариваясь о нём через тот же зашифрованный канал. Получилось — голос идёт напрямую
+   с минимальной задержкой; оборвалось — мгновенно возвращается на сервер. */
+const UP = { pc:null, a:'', selfUp:false, peerUp:false, stream:null, cand:[], early:{}, remoteSet:false, timer:0, downT:0, retryT:0, tries:0, pendingOffer:null };
+function upMakePC(a){
+  upClose();
+  const pc = new RTCPeerConnection({iceServers:iceServers()});
+  UP.pc = pc; UP.a = a; UP.selfUp = false; UP.peerUp = false; UP.stream = null; UP.cand = []; UP.remoteSet = false;
+  pc.onicecandidate = e => { if (e.candidate && UP.pc === pc) relaySendCtl({t:'ice', a, c:e.candidate.toJSON()}); };
+  pc.ontrack = e => { if (UP.pc !== pc) return; UP.stream = e.streams[0] || new MediaStream([e.track]); if (UP.selfUp) upApply(); };
+  pc.onconnectionstatechange = () => upState(pc);
+  pc.oniceconnectionstatechange = () => upState(pc);
+  UP.timer = setTimeout(() => { if (UP.pc === pc && !UP.selfUp) upFail(); }, 12000);
+  return pc;
+}
+async function upStart(){
+  if (S.role !== 'guest' || R.mode !== 'relay' || UP.pc || pref('forceRelay') === '1' || !S.localStream) return;
+  const a = rnd(8, 'abcdefghijkmnpqrstuvwxyz23456789');
+  const pc = upMakePC(a);
+  try{
+    S.localStream.getAudioTracks().forEach(t => pc.addTrack(t, S.localStream));
+    await pc.setLocalDescription(await pc.createOffer());
+    if (UP.pc === pc) relaySendCtl({t:'sdp', a, d:{type:'offer', sdp:pc.localDescription.sdp}});
+  }catch(e){ if (UP.pc === pc) upFail(); }
+}
+async function upOnSdp(m){
+  const d = m && m.d;
+  if (!d || typeof d.sdp !== 'string' || typeof m.a !== 'string') return;
+  if (d.type === 'offer' && S.role === 'host'){
+    if (!onRelay()){ UP.pendingOffer = m; return; }
+    if (pref('forceRelay') === '1') return;
+    const pc = upMakePC(m.a);
+    try{
+      await pc.setRemoteDescription({type:'offer', sdp:d.sdp}); UP.remoteSet = true;
+      upFlush(pc, (UP.early[m.a] || []).concat(UP.cand)); delete UP.early[m.a];
+      S.localStream.getAudioTracks().forEach(t => pc.addTrack(t, S.localStream));
+      await pc.setLocalDescription(await pc.createAnswer());
+      if (UP.pc === pc) relaySendCtl({t:'sdp', a:m.a, d:{type:'answer', sdp:pc.localDescription.sdp}});
+    }catch(e){ if (UP.pc === pc) upFail(); }
+  } else if (d.type === 'answer' && S.role === 'guest' && UP.pc && m.a === UP.a){
+    const pc = UP.pc;
+    try{ await pc.setRemoteDescription({type:'answer', sdp:d.sdp}); UP.remoteSet = true; upFlush(pc, UP.cand); }
+    catch(e){ if (UP.pc === pc) upFail(); }
+  }
+}
+function upFlush(pc, list){ UP.cand = []; for (const c of list) pc.addIceCandidate(c).catch(() => {}); }
+function upOnIce(m){
+  if (!m || !m.c || typeof m.a !== 'string') return;
+  if (UP.pc && m.a === UP.a){
+    if (UP.remoteSet) UP.pc.addIceCandidate(m.c).catch(() => {}); else UP.cand.push(m.c);
+  } else if (S.role === 'host'){
+    (UP.early[m.a] = UP.early[m.a] || []).push(m.c);
+  }
+}
+function upState(pc){
+  if (UP.pc !== pc) return;
+  const st = linkState(pc);
+  if (st === 'connected'){
+    clearTimeout(UP.downT); UP.downT = 0;
+    if (!UP.selfUp){ UP.selfUp = true; clearTimeout(UP.timer); relaySendCtl({t:'up', a:UP.a, v:1}); upApply(); }
+  } else if (st === 'failed' || st === 'closed'){
+    upFail();
+  } else if (st === 'disconnected' && UP.selfUp){
+    if (!UP.downT) UP.downT = setTimeout(() => { UP.downT = 0; if (UP.pc === pc) upFail(); }, 2500);
+  }
+}
+function upApply(){
+  if (!onRelay()) return;
+  /* слушаем прямой канал, как только он открылся у нас */
+  if (UP.selfUp && UP.stream && R.mode !== 'up'){ R.mode = 'up'; useRemote(UP.stream, null); }
+  /* через сервер перестаём слать, когда друг тоже слышит напрямую */
+  R.txVia = !(UP.selfUp && UP.peerUp);
+}
+function upOnUp(m){
+  if (!m || m.a !== UP.a || !UP.pc) return;
+  if (m.v){ UP.peerUp = true; upApply(); }
+  else upFail(true);
+}
+function upFail(silent){
+  const wasUp = R.mode === 'up', had = !!UP.pc, a = UP.a;
+  upClose();
+  if (had && !silent) relaySendCtl({t:'up', a, v:0});
+  R.txVia = true;
+  if (wasUp){
+    R.mode = 'relay';
+    if (R.rx && R.rx.out) useRemote(R.rx.out, null);
+    relayRoute();
+  }
+  if (S.role === 'guest' && onRelay() && UP.tries < 3 && pref('forceRelay') !== '1'){
+    clearTimeout(UP.retryT); UP.retryT = setTimeout(upStart, 15000 * ++UP.tries);
+  }
+}
+function upClose(){
+  clearTimeout(UP.timer); clearTimeout(UP.downT); UP.downT = 0;
+  const pc = UP.pc; UP.pc = null; UP.selfUp = false; UP.peerUp = false; UP.stream = null; UP.cand = []; UP.remoteSet = false;
+  if (pc){ try{ pc.close(); }catch(e){} }
+}
+function upReset(){ upClose(); clearTimeout(UP.retryT); UP.early = {}; UP.pendingOffer = null; UP.tries = 0; }
 
 /* ---------- проверка связи ---------- */
 function hostOf(url){ try{ return new URL(url).host; }catch(e){ return url; } }
@@ -1531,7 +1764,7 @@ function capDemo(){
   });
 }
 function sendCtl(obj){
-  if (R.mode === 'relay') return relaySendCtl(obj);
+  if (onRelay()) return relaySendCtl(obj);
   try{
     if (S.mode === 'peer'){ const c = S.call && ctls.get(S.call.peer); if (c && c.open) c.send(obj); }
     else if (S.mode === 'manual'){ const dc = S.pc && dcs.get(S.pc); if (dc && dc.readyState === 'open') dc.send(JSON.stringify(obj)); }
@@ -1725,7 +1958,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('online', wakeUpLinks);
 /* сколько серверов-ретрансляторов отвечает — видно на экране, пока ждём друга */
 setInterval(() => {
-  if (!R.active || R.mode === 'relay' || (S.state !== 'waiting' && S.state !== 'connecting')) return;
+  if (!R.active || onRelay() || (S.state !== 'waiting' && S.state !== 'connecting')) return;
   const up = R.conns.filter(c => c.ok).length, n = R.conns.length;
   if (!n) return;
   $('route').textContent = 'серверы: ' + up + ' из ' + n;
@@ -1778,6 +2011,8 @@ $('mCopyOffer').onclick = e => $('mOffer').value && copyText($('mOffer').value, 
 $('mCopyAnswer').onclick = e => $('mAnswer').value && copyText($('mAnswer').value, e.currentTarget);
 $('fRelay').checked = pref('forceRelay') === '1';
 $('fRelay').onchange = e => pref('forceRelay', e.target.checked ? '1' : '0');
+$('fHp').checked = pref('headphones') === '1';
+$('fHp').onchange = e => pref('headphones', e.target.checked ? '1' : '0');
 for (const [id, k] of [['tUrl','turnUrl'],['tUser','turnUser'],['tPass','turnPass'],['sUrl','server'],['rUrl','relays']]){
   $(id).value = pref(k); $(id).addEventListener('change', e => pref(k, e.target.value.trim()));
 }
