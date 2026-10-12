@@ -329,6 +329,7 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
   </details>
 
   <p class="fine" id="fine">В канале до 4 человек. Голос шифруется и идёт напрямую между вами, а где сеть этого не пропускает — через серверы-ретрансляторы.</p>
+  <p class="fine"><a href="neo/">Попробовать новый дизайн →</a></p>
   <audio id="remote" autoplay playsinline></audio>
 </main>
 
@@ -338,7 +339,9 @@ const PREFIX = 'racia-v1-';
 const VERSION = '7 · 12.10.2026';
 const HOME = 'https://eshipptv-sys.github.io/lost/';
 const MODEL = { key:'ru-small-0.22', file:'vosk/vosk-model-small-ru-0.22.tar.gz', bytes:46236562, mb:44 };
-const ASSET = p => new URL(p, isWeb() ? location.href : HOME).href;
+const ASSET = p => new URL(p, isWeb() ? new URL(window.RACIA_BASE || './', location.href).href : HOME).href;
+/* точка подключения внешнего вида: другой дизайн переопределяет эту функцию */
+function skin(){}
 const $ = id => document.getElementById(id);
 const S = { mode:null, role:null, state:'idle', pc:null, code:null,
   localStream:null, remoteStream:null, localMeter:null, remoteMeter:null, muted:false,
@@ -408,7 +411,7 @@ function toIdle(msg, kind){
   setChan('— — —'); $('cnt').textContent = '';
   setStatus(msg || 'Создайте канал или введите код друга', kind);
   resetManual(); setBars(0); $('route').textContent = ''; $('timer').textContent = '00:00';
-  renderPeers();
+  renderPeers(); skin('idle');
 }
 function toWaiting(){
   S.state = 'waiting'; show('vWait'); setLed('wait');
@@ -419,13 +422,13 @@ function toWaiting(){
   $('btnCopy').classList.toggle('primary', !navigator.share);
   igniteText($('waitText'), 'Отправьте ссылку друзьям и сразу вернитесь на эту страницу: пока она свёрнута, телефон её усыпляет. В канале может быть до ' + MAX_PEOPLE + ' человек.', 35);
   setStatus('Канал открыт. Ждём друзей…');
-  roomCount();
+  roomCount(); skin('waiting');
 }
 function toConnecting(status, hint){
   S.state = 'connecting'; show('vWait'); setLed('wait');
   $('shareRow').hidden = true; $('invite').hidden = true;
   igniteText($('waitText'), hint || '', 35);
-  setStatus(status);
+  setStatus(status); skin('connecting');
 }
 function toCall(){
   S.state = 'incall';
@@ -435,7 +438,7 @@ function toCall(){
   S.t0 = Date.now(); clearInterval(S.tick); S.tick = setInterval(updTimer, 1000); updTimer();
   S.prevIn = null; clearInterval(S.statsTimer);
   if (S.mode === 'manual'){ S.statsTimer = setInterval(pollStats, 2000); pollStats(); }
-  grabWake();
+  grabWake(); skin('call');
 }
 
 /* ---------- очистка ---------- */

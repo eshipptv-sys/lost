@@ -1,0 +1,2298 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B0C10">
+<title>Рация</title>
+<meta name="description" content="Голосовая связь до 4 человек прямо в браузере. Открой ссылку и нажми «Войти».">
+<meta property="og:title" content="Рация">
+<meta property="og:description" content="Голосовая связь до 4 человек прямо в браузере. Открой ссылку и нажми «Войти».">
+<meta property="og:type" content="website">
+<style>
+/* Ночная студия: светящиеся круги участников на тёмном фоне, свет комнаты окрашивается голосом говорящего */
+@font-face{font-family:"Unbounded";font-weight:500;font-display:swap;src:url(fonts/unbounded-cyrillic-500-normal.woff2) format("woff2");unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"Unbounded";font-weight:500;font-display:swap;src:url(fonts/unbounded-latin-500-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Unbounded";font-weight:600;font-display:swap;src:url(fonts/unbounded-cyrillic-600-normal.woff2) format("woff2");unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"Unbounded";font-weight:600;font-display:swap;src:url(fonts/unbounded-latin-600-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Onest";font-weight:400;font-display:swap;src:url(fonts/onest-cyrillic-400-normal.woff2) format("woff2");unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"Onest";font-weight:400;font-display:swap;src:url(fonts/onest-latin-400-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Onest";font-weight:600;font-display:swap;src:url(fonts/onest-cyrillic-600-normal.woff2) format("woff2");unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"Onest";font-weight:600;font-display:swap;src:url(fonts/onest-latin-600-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+:root{
+  --bg:#0B0C10; --panel:rgba(20,22,29,.66); --glass:rgba(255,255,255,.06); --glass-hi:rgba(255,255,255,.1);
+  --line:rgba(255,255,255,.09); --ink:#F3F1EC; --muted:#8F919B; --faint:#5A5D68;
+  --me:#6EF0C5; --c1:#FFB547; --c2:#5CC8FF; --c3:#FF6B8B; --bad:#FF5A4F; --ok:#6EF0C5; --warn:#FFB547;
+  --f-d:"Unbounded","Arial Black",system-ui,sans-serif;
+  --f-ui:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --f-mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg);height:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-ui);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+a{color:inherit}
+
+#aura{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;filter:blur(36px) saturate(150%);opacity:.95}
+.app{position:relative;z-index:1;max-width:560px;margin:0 auto;min-height:100vh;min-height:100dvh;
+  padding-inline:18px;padding-block:calc(12px + env(safe-area-inset-top,0px)) calc(28px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:20px}
+body[data-view="call"] .app{padding-bottom:calc(132px + env(safe-area-inset-bottom,0px))}
+
+/* верхняя полоса */
+.bar{display:flex;align-items:center;gap:10px;min-height:44px}
+.logo{display:flex;align-items:center;gap:9px;font:600 19px/1 var(--f-d);letter-spacing:-.03em;white-space:nowrap}
+.mark{width:22px;height:22px;border-radius:50%;flex:none;
+  background:conic-gradient(from 200deg,var(--me),var(--c2),var(--c3),var(--c1),var(--me));
+  box-shadow:0 0 16px rgba(110,240,197,.35);animation:spin 12s linear infinite}
+@keyframes spin{to{transform:rotate(1turn)}}
+.pill{margin-left:auto;display:flex;align-items:center;gap:8px;min-width:0;padding:8px 13px;border-radius:999px;
+  background:var(--panel);border:1px solid var(--line);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+  font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden}
+.pill .mono{font:500 12.5px/1 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+.led{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
+.led[data-s="wait"]{background:var(--warn);animation:blink 1.4s ease-in-out infinite}
+.led[data-s="on"]{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.led[data-s="err"]{background:var(--bad)}
+@keyframes blink{50%{opacity:.3}}
+.tag{font-size:11px;color:var(--bad)}
+#cnt:empty{display:none}
+.sig{display:inline-flex;align-items:flex-end;gap:2px;height:12px}
+.sig b{width:3px;background:var(--faint);border-radius:1px}
+.sig b:nth-child(1){height:30%}.sig b:nth-child(2){height:55%}.sig b:nth-child(3){height:78%}.sig b:nth-child(4){height:100%}
+.sig[data-n="1"] b:nth-child(-n+1),.sig[data-n="2"] b:nth-child(-n+2),.sig[data-n="3"] b:nth-child(-n+3),.sig[data-n="4"] b{background:var(--ink)}
+body[data-view="start"] .pill .mono,body[data-view="start"] .sig{display:none}
+body:not([data-view="call"]) #timer{display:none}
+.icon{appearance:none;flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+.icon svg{width:20px;height:20px}
+.icon:hover{background:var(--glass-hi)}
+
+/* код канала */
+.chanbox{display:grid;justify-items:center;gap:6px;text-align:center}
+.chanbox .cap{font:500 11px/1 var(--f-ui);letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
+.chan{font:500 clamp(46px,14vw,74px)/1 var(--f-d);letter-spacing:.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
+body[data-view="start"] .chanbox{display:none}
+body[data-view="call"] .chanbox{display:flex;justify-content:center;align-items:baseline;gap:10px}
+body[data-view="call"] .chan{font-size:18px}
+.dg{display:inline-block;animation:dgOn .8s cubic-bezier(.2,.8,.2,1) var(--d,0ms) both}
+@keyframes dgOn{0%{opacity:0;filter:blur(8px);transform:translateY(.35em)}60%{opacity:1;filter:blur(0);text-shadow:0 0 22px rgba(255,255,255,.7)}100%{opacity:1;transform:none;text-shadow:none}}
+
+/* круги участников */
+.orbs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px;justify-items:center;padding-top:6px}
+body[data-view="start"] .orbs{display:none}
+body[data-view="wait"] .orbs,body[data-n="1"] .orbs{grid-template-columns:1fr}
+body[data-view="call"][data-n="2"] .orbs{grid-template-columns:repeat(2,minmax(0,1fr))}
+#mPeers{display:contents}
+.orb{--c:var(--me);--l:0;display:grid;justify-items:center;gap:8px;text-align:center;width:100%;min-width:0}
+.orb.p1{--c:var(--c1)} .orb.p2{--c:var(--c2)} .orb.p3{--c:var(--c3)}
+.disc{position:relative;isolation:isolate;width:clamp(108px,31vw,150px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(circle at 50% 35%,#1C1F27 0%,#111319 70%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 18px 40px -18px rgba(0,0,0,.8)}
+body[data-view="wait"] .disc{width:clamp(150px,44vw,200px)}
+body[data-view="call"][data-n="3"] .disc,body[data-view="call"][data-n="4"] .disc{width:clamp(84px,24vw,140px)}
+body[data-view="call"][data-n="3"] .ini,body[data-view="call"][data-n="4"] .ini{font-size:clamp(32px,8.5vw,50px)}
+body[data-view="call"][data-n="3"] .orbs,body[data-view="call"][data-n="4"] .orbs{row-gap:16px}
+.disc::before{content:"";position:absolute;inset:-26%;border-radius:50%;z-index:-1;
+  background:radial-gradient(circle,var(--c) 0%,transparent 62%);filter:blur(16px);
+  opacity:calc(.12 + var(--l) * .9);transform:scale(calc(.85 + var(--l) * .45))}
+.ring{position:absolute;inset:-5px;border-radius:50%;border:2px solid var(--c);
+  opacity:calc(.35 + var(--l) * .65);transform:scale(calc(1 + var(--l) * .1))}
+.orb.talk .disc::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:2px solid var(--c);animation:ripple 1.3s ease-out infinite}
+@keyframes ripple{from{opacity:.55;transform:scale(1)}to{opacity:0;transform:scale(1.35)}}
+.ini{font:600 clamp(38px,11vw,56px)/1 var(--f-d);color:var(--c);letter-spacing:-.04em}
+.nm{font:600 15px/1.2 var(--f-ui);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub{font-size:12.5px;line-height:1.2;color:var(--muted);min-height:1.2em}
+.orb.mute .ring{border-style:dashed;opacity:.35}
+.orb.mute .sub{color:var(--bad)}
+
+/* строки состояния */
+.status{margin:0;text-align:center;font-size:15px;line-height:1.45;color:var(--muted);min-height:1.45em;text-wrap:balance;--sw-rest:var(--muted)}
+.status[data-kind="ok"]{--sw-rest:var(--ink)}
+.status[data-kind="err"]{--sw-rest:var(--bad)}
+.status[data-kind="warn"]{--sw-rest:var(--warn)}
+body[data-view="start"] .status{order:1}
+body[data-view="start"] .caps{order:2}
+.route{margin:-14px 0 0;text-align:center;font:500 12px/1.4 var(--f-mono);color:var(--muted);opacity:.8;min-height:1.4em}
+body[data-view="start"] .route{display:none}
+.sw{display:inline-block;color:var(--sw-rest,inherit);animation:swOn .7s ease-out var(--d,0ms) both}
+@keyframes swOn{0%{opacity:0;filter:blur(5px);transform:translateY(.3em);color:#fff}40%{opacity:1;filter:none;transform:none;color:#fff;text-shadow:0 0 14px rgba(255,255,255,.75)}100%{opacity:1;color:var(--sw-rest,inherit);text-shadow:none}}
+#waitText{--sw-rest:var(--muted)}
+
+/* стартовый экран */
+.hero{margin:18px 0 0;font:600 clamp(42px,12vw,68px)/.98 var(--f-d);letter-spacing:-.045em;text-wrap:balance}
+.swg{display:inline-block;animation:swgOn 1s cubic-bezier(.2,.8,.2,1) var(--d,0ms) both}
+@keyframes swgOn{0%{opacity:0;filter:blur(10px);transform:translateY(.25em) scale(1.04)}100%{opacity:1;filter:none;transform:none}}
+.hero .grad{background:linear-gradient(95deg,var(--me) 0%,var(--c2) 38%,var(--c3) 70%,var(--c1) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{margin:12px 0 0;max-width:32ch;font-size:17px;line-height:1.5;color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:28px;padding:20px;display:grid;gap:12px;
+  -webkit-backdrop-filter:blur(22px) saturate(140%);backdrop-filter:blur(22px) saturate(140%)}
+.view{display:grid;gap:14px}
+.lab{font-size:13px;color:var(--muted)}
+.input{width:100%;min-width:0;height:56px;padding:0 18px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.05);font-size:17px;outline:none}
+.input:focus{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.08)}
+.input.code{font:500 21px/1 var(--f-d);letter-spacing:.12em;text-align:center;padding:0 12px}
+.input::placeholder{color:var(--faint)}
+.joinrow,.row2{display:flex;flex-wrap:wrap;gap:10px}
+.joinrow .input{flex:1 1 150px}
+.joinrow .btn{flex:0 0 auto;padding:0 28px}
+.row2 .btn{flex:1 1 140px}
+.or{display:flex;align-items:center;gap:12px;color:var(--faint);font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:4px 0}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.btn{appearance:none;min-height:56px;padding:0 22px;border-radius:999px;border:1px solid transparent;cursor:pointer;
+  font:600 17px/1.15 var(--f-ui);display:inline-flex;align-items:center;justify-content:center;gap:10px;transition:transform .12s,background .15s}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--ink);color:#0B0C10}
+.btn.primary:hover{background:#fff}
+.btn,.btn.glass{background:var(--glass);border-color:var(--line);color:var(--ink)}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:#0B0C10}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted);min-height:44px}
+.btn.small{min-height:42px;padding:0 16px;font-size:14px}
+.btn:disabled{opacity:.5;cursor:default}
+
+/* приглашение */
+.invite{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:14px;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.qr{width:124px;aspect-ratio:1;border-radius:16px;background:#fff;padding:8px;display:grid;place-items:center}
+.qr svg{width:100%;height:auto;display:block}
+.qr:empty{display:none}
+.inv-r{display:grid;gap:6px;min-width:0}
+.inv-r code{font:500 13px/1.4 var(--f-mono);word-break:break-all;color:var(--ink);user-select:all;-webkit-user-select:all}
+.inv-r .lab{font-size:12px}
+#waitText{margin:0;text-align:center;color:var(--muted);font-size:14.5px;text-wrap:balance}
+
+/* субтитры */
+.caps{background:var(--panel);border:1px solid var(--line);border-radius:28px;padding:14px 16px 16px;display:grid;gap:10px;min-width:0;
+  -webkit-backdrop-filter:blur(22px) saturate(140%);backdrop-filter:blur(22px) saturate(140%)}
+body[data-view="wait"] .caps{display:none}
+.caps-head{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.captog{appearance:none;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:7px 12px;font:600 12px/1 var(--f-ui);letter-spacing:.02em;text-transform:none}
+.captog[aria-pressed="true"]{color:#0B0C10;background:var(--me);border-color:var(--me)}
+.lines-wrap{position:relative;min-width:0}
+.lines{display:flex;flex-direction:column;justify-content:flex-end;gap:10px;height:7.6em;overflow:hidden;
+  font:600 clamp(20px,5.8vw,26px)/1.22 var(--f-ui);letter-spacing:-.01em;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 2.2em);mask-image:linear-gradient(to bottom,transparent 0,#000 2.2em)}
+.cap-empty{position:absolute;inset:0;display:grid;place-items:center;margin:0;text-align:center;font-size:15px;color:var(--faint);pointer-events:none}
+.cl{display:grid;grid-template-columns:5em minmax(0,1fr);align-items:baseline;gap:10px;transition:opacity .5s}
+.cl.me{--hot:#F2FFFA;--glow:var(--me);--rest:#BDF7E2}
+.cl.friend,.cl.friend.c1{--hot:#FFF7E8;--glow:var(--c1);--rest:#FFD99A}
+.cl.friend.c2{--hot:#EFFAFF;--glow:var(--c2);--rest:#B4E3FF}
+.cl.friend.c3{--hot:#FFF0F4;--glow:var(--c3);--rest:#FFB7C6}
+.cl .who{font:600 10.5px/1 var(--f-ui);letter-spacing:.14em;color:var(--glow);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cl .ws{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:.28em;row-gap:.04em;min-width:0;overflow-wrap:anywhere}
+.cl.old{opacity:.38}
+.cl.out{opacity:0}
+.w{display:inline-block;color:var(--rest);animation:ignite 1.3s cubic-bezier(.16,.84,.3,1) var(--d,0ms) both}
+@keyframes ignite{
+  0%{opacity:0;transform:translateY(.5em) scale(1.35);filter:blur(10px);color:var(--hot)}
+  20%{opacity:1;transform:none;filter:none;color:var(--hot);text-shadow:0 0 4px var(--hot),0 0 16px var(--glow),0 0 36px var(--glow)}
+  100%{opacity:1;transform:none;filter:none;color:var(--rest);text-shadow:0 0 14px color-mix(in srgb,var(--glow) 35%,transparent)}
+}
+.cl:not(.fin) .ws::after{content:"";align-self:center;width:.38em;height:.85em;border-radius:2px;background:var(--glow);box-shadow:0 0 10px var(--glow);animation:caret 1s ease-in-out infinite}
+@keyframes caret{50%{opacity:.15}}
+.capbar{height:3px;border-radius:2px;background:var(--line);overflow:hidden}
+.capbar i{display:block;height:100%;width:calc(var(--p,0) * 100%);background:var(--me);box-shadow:0 0 10px var(--me);transition:width .2s}
+.capbar.busy i{width:35%;animation:scan 1.3s ease-in-out infinite alternate}
+@keyframes scan{from{transform:translateX(-10%)}to{transform:translateX(200%)}}
+body[data-view="call"] .lines{height:6.2em}
+.stage-note{margin:0;font-size:12.5px;line-height:1.45;color:var(--muted)}
+
+/* док с кнопками разговора */
+.dock{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:5;
+  display:flex;align-items:center;gap:14px;padding:10px 12px;border-radius:999px;
+  background:rgba(18,20,26,.72);border:1px solid var(--line);-webkit-backdrop-filter:blur(24px) saturate(150%);backdrop-filter:blur(24px) saturate(150%);
+  box-shadow:0 20px 50px -20px rgba(0,0,0,.9)}
+.dk{appearance:none;position:relative;width:58px;height:58px;border-radius:50%;border:1px solid var(--line);background:var(--glass);cursor:pointer;display:grid;place-items:center;color:var(--ink);transition:transform .12s,background .15s}
+.dk:active{transform:scale(.94)}
+.dk svg{width:24px;height:24px}
+.dk.mic{width:74px;height:74px;background:var(--ink);color:#0B0C10;border-color:var(--ink)}
+.dk.mic svg{width:30px;height:30px}
+.dk.mic .slash{display:none}
+.dk.mic[aria-pressed="true"]{background:transparent;color:var(--bad);border-color:var(--bad)}
+.dk.mic[aria-pressed="true"] .slash{display:inline}
+.dk.end{background:var(--bad);border-color:var(--bad);color:#fff}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* шторка настроек */
+.sheet{position:fixed;inset:0;z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet-bg{position:absolute;inset:0;background:rgba(5,6,9,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);animation:fade .2s ease-out}
+.sheet-panel{position:relative;width:100%;max-width:560px;max-height:88vh;max-height:88dvh;overflow:auto;
+  background:#12141A;border:1px solid var(--line);border-bottom:0;border-radius:28px 28px 0 0;
+  padding:18px 20px calc(24px + env(safe-area-inset-bottom,0px));display:grid;gap:16px;animation:up .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes up{from{transform:translateY(40px);opacity:0}}
+@keyframes fade{from{opacity:0}}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;font:600 18px/1 var(--f-d);letter-spacing:-.02em}
+.field{display:grid;gap:6px;font-size:13px;color:var(--muted)}
+.field input,.field select,textarea{width:100%;min-width:0;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);border-radius:14px;padding:12px 14px;font-size:15px}
+.field input[type=range]{padding:0;border:0;background:none;accent-color:var(--me)}
+textarea{height:84px;resize:vertical;word-break:break-all;font:13px/1.4 var(--f-mono)}
+.check{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;line-height:1.45;color:var(--ink);cursor:pointer}
+.check input{width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:var(--me)}
+.note{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+.fold{border-top:1px solid var(--line);padding-top:14px}
+.fold>summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::after{content:"+";color:var(--muted);font-weight:400;font-size:22px;line-height:1}
+.fold[open]>summary::after{content:"–"}
+.fold .inner{display:grid;gap:12px;padding-top:12px}
+.steps{margin:0;padding-left:1.3em;display:grid;gap:14px}
+.steps li>*{margin-top:6px}
+.diag{list-style:none;margin:0;padding:0;display:grid;gap:7px;font-size:13px;line-height:1.4}
+.diag:empty{display:none}
+.diag li{display:grid;grid-template-columns:1.3em minmax(0,1fr) auto;gap:8px;align-items:baseline}
+.diag li>span:nth-child(2){overflow-wrap:anywhere}
+.diag li>span:last-child{font:12px var(--f-mono);white-space:nowrap}
+.diag .ok{color:var(--ok)} .diag .bad{color:var(--bad)} .diag .wait{color:var(--muted)}
+.fine{margin:0;font-size:12.5px;color:var(--faint);text-align:center;text-wrap:balance}
+.classic{display:block;text-align:center;font-size:14px;color:var(--muted)}
+
+@media (min-width:760px){
+  .app{max-width:640px}
+  .disc{width:160px} body[data-view="wait"] .disc{width:210px}
+  body[data-view="call"][data-n="3"] .disc,body[data-view="call"][data-n="4"] .disc{width:132px}
+  body[data-view="call"] .app{max-width:820px}
+  body[data-view="call"] .caps{width:100%;max-width:640px;margin-inline:auto}
+  body[data-view="call"][data-n="3"] .orbs{grid-template-columns:repeat(3,minmax(0,1fr))}
+  body[data-view="call"][data-n="4"] .orbs{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body data-view="start" data-n="1">
+<canvas id="aura" aria-hidden="true"></canvas>
+<div class="app">
+  <header class="bar">
+    <div class="logo"><span class="mark" aria-hidden="true"></span>рация</div>
+    <div class="pill" aria-live="polite">
+      <span class="led" id="led" data-s="off"></span><span id="ledTxt">не в эфире</span>
+      <span id="timer" class="mono">00:00</span><span id="cnt" class="mono"></span>
+      <span class="tag" id="micTag" hidden>микр. выкл</span>
+      <span class="sig" id="sig" data-n="0" title="Качество связи"><b></b><b></b><b></b><b></b></span>
+    </div>
+    <button class="icon" id="btnSettings" aria-label="Настройки" title="Настройки">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg>
+    </button>
+  </header>
+
+  <div class="chanbox"><span class="cap">канал</span><div class="chan" id="chan">— — —</div></div>
+
+  <div class="orbs" id="orbs">
+    <div class="orb" id="orbMe">
+      <div class="disc"><i class="ring"></i><span class="ini" id="meIni">Я</span></div>
+      <div class="nm" id="meName">Вы</div><div class="sub" id="meSub"></div>
+      <i id="mMe" hidden></i>
+    </div>
+    <div id="mPeers"></div>
+  </div>
+
+  <p class="status" id="status" aria-live="polite">Создайте канал или введите код друга</p>
+  <p class="route" id="route"></p>
+
+  <section class="view" id="vStart">
+    <h1 class="hero" id="hero">Голос <span class="grad">на четверых</span></h1>
+    <p class="lead">Без регистрации и номеров. Голос шифруется, слова загораются субтитрами, в канале до четырёх человек.</p>
+    <div class="card">
+      <label class="lab" for="inName">Ваше имя — его увидят остальные</label>
+      <input id="inName" class="input" maxlength="20" autocomplete="nickname" placeholder="Например, Виктор">
+      <button class="btn primary" id="btnCreate">Создать канал</button>
+      <div class="or">или войти по коду</div>
+      <div class="joinrow">
+        <input id="inCode" class="input code" inputmode="numeric" autocomplete="off" placeholder="000 000" maxlength="7" aria-label="Код канала, 6 цифр">
+        <button class="btn" id="btnJoin">Войти</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="vWait" hidden>
+    <p id="waitText"></p>
+    <div class="invite" id="invite" hidden>
+      <div class="qr" id="qr" aria-label="QR-код ссылки на канал"></div>
+      <div class="inv-r"><span class="lab">Наведите камеру телефона или отправьте ссылку</span><code id="linkTxt"></code></div>
+    </div>
+    <div class="row2" id="shareRow">
+      <button class="btn primary" id="btnShare" hidden>Отправить ссылку</button>
+      <button class="btn" id="btnCopy">Скопировать приглашение</button>
+    </div>
+    <button class="btn ghost" id="btnCancel">Выйти</button>
+  </section>
+
+  <section class="caps" id="capPanel" aria-label="Субтитры">
+    <div class="caps-head"><span>субтитры <span id="capDemo" hidden>· пример</span></span>
+      <button class="captog" id="btnCap" aria-pressed="false" hidden>Моя речь: выкл</button></div>
+    <div class="lines-wrap">
+      <div class="lines" id="lines"></div>
+      <p class="cap-empty" id="capEmpty">Говорите, и слова загорятся здесь</p>
+    </div>
+    <div class="capbar" id="capBar" hidden><i id="capBarFill"></i></div>
+    <p class="stage-note" id="capNote" hidden></p>
+  </section>
+
+  <section class="view" id="vCall" hidden>
+    <button class="btn" id="btnSound" hidden>Включить звук собеседников</button>
+    <nav class="dock" aria-label="Управление разговором">
+      <button class="dk" id="btnInvite" hidden aria-label="Позвать ещё" title="Позвать ещё">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="8" r="3.5"/><path d="M3.5 19c.8-3.3 3.4-5 6.5-5s5.7 1.7 6.5 5M19 8v6M16 11h6"/></svg>
+      </button>
+      <button class="dk mic" id="btnMute" aria-pressed="false" title="Микрофон (клавиша M)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/><path class="slash" d="M4 3l16 18"/></svg>
+        <span class="sr" id="muteLbl">Микрофон включён</span>
+      </button>
+      <button class="dk end" id="btnHang" aria-label="Выйти из канала" title="Выйти из канала">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3.5 14.5c4.7-4.6 12.3-4.6 17 0l-2.3 2.3-3.2-1.6v-2.4a11 11 0 0 0-6 0v2.4L5.8 16.8z"/></svg>
+      </button>
+    </nav>
+  </section>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-bg" data-close></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Настройки">
+    <div class="sheet-head"><span>Настройки</span>
+      <button class="icon" data-close aria-label="Закрыть"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <label class="field" for="vol">Громкость собеседников<input type="range" id="vol" min="0" max="100" value="100"></label>
+    <label class="field" for="micSel">Микрофон<select id="micSel"><option value="">По умолчанию</option></select></label>
+    <label class="check" for="fHp"><input type="checkbox" id="fHp">
+      <span>Я в наушниках. Задержка станет меньше, но без наушников будет эхо. Применяется к следующему разговору.</span></label>
+    <label class="check" for="fRelay"><input type="checkbox" id="fRelay">
+      <span>Не пробовать прямую связь, говорить только через сервер.</span></label>
+
+    <details class="fold" id="diag">
+      <summary>Проверка связи</summary>
+      <div class="inner">
+        <p class="note">Если не соединяется, нажмите кнопку у себя и попросите друзей сделать то же самое. Пришлите результаты.</p>
+        <button class="btn small" id="btnDiag">Проверить связь</button>
+        <ul class="diag" id="diagList"></ul>
+        <p class="note" id="diagSum" hidden></p>
+        <button class="btn small" id="btnDiagCopy" hidden>Скопировать результат</button>
+      </div>
+    </details>
+
+    <details class="fold" id="manual">
+      <summary>Связь без сервера</summary>
+      <div class="inner">
+        <p class="note">Запасной способ на двоих без серверов: вы обмениваетесь двумя длинными кодами через любой мессенджер. Работает, только если сеть пропускает прямую связь. Делайте это быстро, в пределах минуты.</p>
+        <div class="row2">
+          <button class="btn small" id="mStartA">Я начинаю</button>
+          <button class="btn small" id="mStartB">Мне прислали код</button>
+        </div>
+        <ol class="steps" id="mA" hidden>
+          <li>Отправьте другу код приглашения:
+            <textarea id="mOffer" readonly placeholder="Готовим код…" aria-label="Код приглашения"></textarea>
+            <button class="btn small" id="mCopyOffer">Скопировать</button></li>
+          <li>Вставьте код-ответ, который пришлёт друг:
+            <textarea id="mAnswerIn" aria-label="Код-ответ друга"></textarea>
+            <button class="btn small primary" id="mConnect">Соединить</button></li>
+        </ol>
+        <ol class="steps" id="mB" hidden>
+          <li>Вставьте код приглашения от друга:
+            <textarea id="mOfferIn" aria-label="Код приглашения от друга"></textarea>
+            <button class="btn small primary" id="mMakeAnswer">Создать ответ</button></li>
+          <li>Отправьте другу код-ответ. Связь начнётся, когда он его вставит:
+            <textarea id="mAnswer" readonly aria-label="Ваш код-ответ"></textarea>
+            <button class="btn small" id="mCopyAnswer">Скопировать</button></li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="fold" id="adv">
+      <summary>Серверы</summary>
+      <div class="inner">
+        <label class="field" for="rUrl">Серверы-ретрансляторы голоса (MQTT по WebSocket, через запятую). Пустое поле — общие серверы.
+          <input id="rUrl" placeholder="wss://broker.emqx.io:8084/mqtt" autocomplete="off"></label>
+        <p class="note">Свой TURN-сервер помогает открыть прямой канал там, где он сам не открывается. Укажите одинаково у всех.</p>
+        <label class="field" for="tUrl">Адрес TURN<input id="tUrl" placeholder="turn:203.0.113.10:3478" autocomplete="off"></label>
+        <div class="row2">
+          <label class="field" for="tUser" style="flex:1 1 140px">Логин<input id="tUser" autocomplete="off"></label>
+          <label class="field" for="tPass" style="flex:1 1 140px">Пароль<input id="tPass" type="password" autocomplete="off"></label>
+        </div>
+      </div>
+    </details>
+
+    <p class="fine" id="fine">До 4 человек в канале. Голос шифруется и идёт напрямую, а где сеть этого не пропускает — через серверы-ретрансляторы.</p>
+    <a class="classic" href="../">Классический вид</a>
+  </div>
+</div>
+<audio id="remote" autoplay playsinline></audio>
+<script>window.RACIA_BASE = '../';</script>
+<script src="qr.js"></script>
+<script>
+'use strict';
+const PREFIX = 'racia-v1-';
+const VERSION = '7 · 12.10.2026';
+const HOME = 'https://eshipptv-sys.github.io/lost/';
+const MODEL = { key:'ru-small-0.22', file:'vosk/vosk-model-small-ru-0.22.tar.gz', bytes:46236562, mb:44 };
+const ASSET = p => new URL(p, isWeb() ? new URL(window.RACIA_BASE || './', location.href).href : HOME).href;
+/* точка подключения внешнего вида: другой дизайн переопределяет эту функцию */
+function skin(){}
+const $ = id => document.getElementById(id);
+const S = { mode:null, role:null, state:'idle', pc:null, code:null,
+  localStream:null, remoteStream:null, localMeter:null, remoteMeter:null, muted:false,
+  ac:null, wake:null, t0:0, tick:0, statsTimer:0, joinTimer:0, discTimer:0, prevIn:null };
+const watched = new WeakSet();
+
+/* ---------- настройки ---------- */
+function pref(k, v){
+  try{ if (v === undefined) return localStorage.getItem('racia.'+k) || ''; localStorage.setItem('racia.'+k, v); }catch(e){ return ''; }
+}
+function iceServers(){
+  const list = [
+    {urls:'stun:stun.l.google.com:19302'},
+    {urls:'stun:stun.cloudflare.com:3478'},
+    {urls:['turn:eu-0.turn.peerjs.com:3478','turn:us-0.turn.peerjs.com:3478'], username:'peerjs', credential:'peerjsp'}
+  ];
+  const urls = pref('turnUrl').split(',').map(s=>s.trim()).filter(u=>/^(turns?|stun):/i.test(u));
+  if (urls.length){
+    const srv = {urls};
+    if (pref('turnUser')) srv.username = pref('turnUser');
+    if (pref('turnPass')) srv.credential = pref('turnPass');
+    list.push(srv);
+  }
+  return list;
+}
+
+/* ---------- экран ---------- */
+const fmt = c => c ? c.slice(0,3)+' '+c.slice(3) : '— — —';
+function igniteText(el, text, step){
+  text = String(text || '');
+  if (el.dataset.txt === text) return;
+  el.dataset.txt = text; el.textContent = '';
+  let k = 0;
+  for (const part of text.split(/(\s+)/)){
+    if (!part) continue;
+    if (/^\s+$/.test(part)){ el.append(part); continue; }
+    const s = document.createElement('span'); s.className = 'sw'; s.textContent = part;
+    s.style.setProperty('--d', (k++ * (step || 60)) + 'ms'); el.append(s);
+  }
+}
+function setStatus(text, kind){ igniteText($('status'), text); $('status').dataset.kind = kind || ''; }
+function setChan(text){
+  const el = $('chan'); if (el.dataset.txt === text) return;
+  el.dataset.txt = text; el.textContent = '';
+  [...text].forEach((ch, i) => {
+    if (ch === ' '){ el.append(' '); return; }
+    const s = document.createElement('span'); s.className = 'dg'; s.textContent = ch;
+    s.style.setProperty('--d', (i * 70) + 'ms'); el.append(s);
+  });
+}
+function setLed(s){ $('led').dataset.s = s; $('ledTxt').textContent = {off:'ВЫКЛ',wait:'ОЖИД',on:'СВЯЗЬ',err:'СБОЙ'}[s] || ''; }
+function show(view){ for (const v of ['vStart','vWait','vCall']) $(v).hidden = v !== view; }
+function setBars(n){ $('sig').dataset.n = n; }
+function updTimer(){
+  const s = Math.floor((Date.now()-S.t0)/1000), h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60;
+  $('timer').textContent = (h ? h+':' : '') + String(m).padStart(2,'0') + ':' + String(x).padStart(2,'0');
+}
+function rnd(n, abc){
+  abc = abc || '0123456789';
+  const a = crypto.getRandomValues(new Uint32Array(n));
+  let s = ''; for (const v of a) s += abc[v % abc.length]; return s;
+}
+
+/* ---------- состояния ---------- */
+function toIdle(msg, kind){
+  S.state = 'idle'; show('vStart'); setLed(kind === 'err' ? 'err' : 'off');
+  setChan('— — —'); $('cnt').textContent = '';
+  setStatus(msg || 'Создайте канал или введите код друга', kind);
+  resetManual(); setBars(0); $('route').textContent = ''; $('timer').textContent = '00:00';
+  renderPeers(); skin('idle');
+}
+function toWaiting(){
+  S.state = 'waiting'; show('vWait'); setLed('wait');
+  setChan(fmt(S.code));
+  $('shareRow').hidden = false; $('invite').hidden = false;
+  $('linkTxt').textContent = inviteLink();
+  $('btnShare').hidden = !navigator.share;
+  $('btnCopy').classList.toggle('primary', !navigator.share);
+  igniteText($('waitText'), 'Отправьте ссылку друзьям и сразу вернитесь на эту страницу: пока она свёрнута, телефон её усыпляет. В канале может быть до ' + MAX_PEOPLE + ' человек.', 35);
+  setStatus('Канал открыт. Ждём друзей…');
+  roomCount(); skin('waiting');
+}
+function toConnecting(status, hint){
+  S.state = 'connecting'; show('vWait'); setLed('wait');
+  $('shareRow').hidden = true; $('invite').hidden = true;
+  igniteText($('waitText'), hint || '', 35);
+  setStatus(status); skin('connecting');
+}
+function toCall(){
+  S.state = 'incall';
+  show('vCall'); setLed('on'); setStatus('На связи', 'ok');
+  if (S.mode === 'manual'){ $('manual').open = false; renderPeers(); }
+  capClear(); cap.line = 0; cap.pending = ''; capSync();
+  S.t0 = Date.now(); clearInterval(S.tick); S.tick = setInterval(updTimer, 1000); updTimer();
+  S.prevIn = null; clearInterval(S.statsTimer);
+  if (S.mode === 'manual'){ S.statsTimer = setInterval(pollStats, 2000); pollStats(); }
+  grabWake(); skin('call');
+}
+
+/* ---------- очистка ---------- */
+function endCall(){
+  capStop();
+  clearInterval(S.tick); clearInterval(S.statsTimer); clearTimeout(S.discTimer);
+  const pc = S.pc; S.pc = null;
+  if (pc){
+    const dc = dcs.get(pc); let sent = false;
+    if (dc && dc.readyState === 'open'){ try{ dc.send('bye'); sent = true; }catch(e){} }
+    setTimeout(() => { try{ pc.close(); }catch(e){} }, sent ? 300 : 0);
+  }
+  S.remoteStream = null; $('remote').srcObject = null;
+  if (S.remoteMeter) S.remoteMeter.disconnect(); S.remoteMeter = null;
+  $('btnSound').hidden = true;
+  releaseWake();
+  $('timer').textContent = '00:00'; $('route').textContent = ''; setBars(0);
+}
+function stopAll(){
+  endCall(); clearTimeout(S.joinTimer);
+  roomStop();
+  stopMic(); S.mode = null; S.code = null;
+}
+/* обрыв в режиме «без сервера» (двое, обмен кодами) */
+function remoteGone(kind){
+  const was = S.state === 'incall';
+  const msg = kind === 'left' ? 'Друг завершил связь' : was ? 'Связь потеряна'
+    : 'Не удалось соединиться: сеть не пропускает прямую связь. Используйте обычный канал по коду.';
+  stopAll(); toIdle(msg, (was || kind === 'left') ? 'warn' : 'err');
+}
+
+/* ---------- микрофон ---------- */
+function micConstraints(id){
+  const c = {echoCancellation:true, noiseSuppression:true, autoGainControl:true};
+  if (id) c.deviceId = {ideal:id};
+  return {audio:c, video:false};
+}
+async function ensureMic(){
+  if (S.localStream) return S.localStream;
+  ensureAudioCtx();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ const e = new Error('insecure'); e.name = 'Insecure'; throw e; }
+  S.localStream = await navigator.mediaDevices.getUserMedia(micConstraints(pref('mic')));
+  S.localMeter = makeMeter(S.localStream);
+  applyMute(); fillMics(); capPreload();
+  return S.localStream;
+}
+function stopMic(){
+  if (S.localStream) S.localStream.getTracks().forEach(t => t.stop());
+  S.localStream = null;
+  if (S.localMeter) S.localMeter.disconnect(); S.localMeter = null;
+  S.muted = false; updateMuteUI();
+}
+function failMic(e){
+  stopAll();
+  let m;
+  if (e.name === 'Insecure') m = 'Браузер не даёт микрофон на этой странице. Откройте файл в Chrome, Яндекс Браузере или Edge, либо разместите его на сайте с https.';
+  else if (e.name === 'NotAllowedError' || e.name === 'SecurityError') m = 'Нет доступа к микрофону. Разрешите его в браузере (значок слева от адреса) и нажмите кнопку ещё раз.';
+  else if (e.name === 'NotFoundError' || e.name === 'OverconstrainedError') m = 'Микрофон не найден. Подключите микрофон или гарнитуру.';
+  else if (e.name === 'NotReadableError') m = 'Микрофон занят другой программой. Закройте её и попробуйте снова.';
+  else m = 'Не удалось включить микрофон: ' + (e.message || e.name);
+  toIdle(m, 'err');
+}
+function applyMute(){
+  if (S.localStream) S.localStream.getAudioTracks().forEach(t => t.enabled = !S.muted);
+  updateMuteUI();
+}
+function updateMuteUI(){
+  $('btnMute').setAttribute('aria-pressed', String(S.muted));
+  $('muteLbl').textContent = S.muted ? 'Микрофон выключен' : 'Микрофон включён';
+  $('micTag').hidden = !S.muted;
+  try{ capSync(); }catch(e){}
+}
+async function fillMics(){
+  try{
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput');
+    const t = S.localStream && S.localStream.getAudioTracks()[0];
+    const cur = t && t.getSettings ? t.getSettings().deviceId : '';
+    const sel = $('micSel'); sel.textContent = '';
+    devs.forEach((d, i) => {
+      const o = document.createElement('option');
+      o.value = d.deviceId; o.textContent = d.label || ('Микрофон ' + (i+1));
+      if (d.deviceId === cur) o.selected = true;
+      sel.append(o);
+    });
+  }catch(e){}
+}
+async function switchMic(id){
+  pref('mic', id);
+  if (!S.localStream) return;
+  try{
+    const c = micConstraints(); c.audio.deviceId = {exact:id};
+    const ns = await navigator.mediaDevices.getUserMedia(c);
+    const nt = ns.getAudioTracks()[0];
+    for (const pc of [currentPC(), ...roomPeers().map(m => m.up && m.up.pc)].filter(Boolean))
+      for (const s of pc.getSenders()) if (s.track && s.track.kind === 'audio') await s.replaceTrack(nt);
+    S.localStream.getTracks().forEach(t => t.stop());
+    if (S.localMeter) S.localMeter.disconnect();
+    S.localStream = ns; S.localMeter = makeMeter(ns);
+    if (RM.tx) txStart();
+    voskDetach();
+    if (cap.rec){ const r = cap.rec; cap.rec = null; try{ r.abort(); }catch(e){} }
+    applyMute();
+  }catch(e){ setStatus('Не удалось переключить микрофон', 'err'); }
+}
+
+/* ---------- индикаторы уровня ---------- */
+function ensureAudioCtx(){
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!S.ac && AC){ try{ S.ac = new AC(); }catch(e){} }
+  if (S.ac && S.ac.state === 'suspended') S.ac.resume().catch(()=>{});
+}
+function makeMeter(stream){
+  if (!S.ac) return null;
+  try{
+    const src = S.ac.createMediaStreamSource(stream), an = S.ac.createAnalyser();
+    an.fftSize = 1024; src.connect(an);
+    const buf = new Float32Array(an.fftSize);
+    return {
+      read(){ an.getFloatTimeDomainData(buf); let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i]*buf[i];
+        const db = 20*Math.log10(Math.sqrt(s/buf.length) || 1e-8); return Math.max(0, Math.min(1, (db+58)/52)); },
+      disconnect(){ try{ src.disconnect(); }catch(e){} }
+    };
+  }catch(e){ return null; }
+}
+const lv = {me:0, friend:0, man:0};
+function meterLoop(){
+  const a = S.localMeter ? S.localMeter.read() : 0;
+  lv.me = a > lv.me ? a : lv.me * 0.86;
+  $('mMe').style.setProperty('--l', lv.me.toFixed(3));
+  let fr = 0;
+  for (const m of RM.members.values()){
+    const r = m.up && m.up.el && m.up.meter ? m.up.meter.read() : m.player ? m.player.read() : 0;
+    m.lv = r > m.lv ? r : m.lv * 0.86;
+    const el = document.getElementById('mv-' + m.pid); if (el) el.style.setProperty('--l', m.lv.toFixed(3));
+    fr = Math.max(fr, m.lv);
+  }
+  if (S.mode === 'manual'){
+    const r = S.remoteMeter ? S.remoteMeter.read() : 0;
+    lv.man = r > lv.man ? r : lv.man * 0.86;
+    const el = document.getElementById('mv-manual'); if (el) el.style.setProperty('--l', lv.man.toFixed(3));
+    fr = lv.man;
+  }
+  lv.friend = fr;
+  requestAnimationFrame(meterLoop);
+}
+
+/* ---------- звук друга и состояние соединения ---------- */
+function currentPC(){ return S.mode === 'manual' ? S.pc : null; }
+function useRemote(stream, pc){
+  if (!stream || S.remoteStream === stream) return;
+  S.remoteStream = stream;
+  const a = $('remote'); a.srcObject = stream; a.volume = (+pref('vol') || 100) / 100;
+  a.play().then(() => { $('btnSound').hidden = true; }).catch(() => { $('btnSound').hidden = false; });
+  if (S.remoteMeter) S.remoteMeter.disconnect();
+  ensureAudioCtx(); S.remoteMeter = makeMeter(stream);
+  if (pc) watchPC(pc);
+}
+function linkState(pc){
+  if (pc.connectionState) return pc.connectionState;
+  return ({checking:'connecting', completed:'connected'})[pc.iceConnectionState] || pc.iceConnectionState;
+}
+function watchPC(pc){
+  if (watched.has(pc)) return; watched.add(pc);
+  const h = () => {
+    if (pc !== currentPC()) return;
+    const st = linkState(pc);
+    if (st === 'connected'){
+      clearTimeout(S.discTimer); S.discTimer = 0;
+      if (S.state !== 'incall') toCall(); else setStatus('На связи', 'ok');
+    } else if (st === 'disconnected'){
+      if (S.state === 'incall') setStatus('Связь прерывается…', 'warn');
+      if (!S.discTimer) S.discTimer = setTimeout(() => { S.discTimer = 0; if (pc === currentPC()) remoteGone('lost'); }, 12000);
+    } else if (st === 'failed'){
+      remoteGone('failed');
+    } else if (st === 'closed'){
+      remoteGone('left');
+    }
+  };
+  pc.addEventListener('connectionstatechange', h);
+  pc.addEventListener('iceconnectionstatechange', h);
+  h();
+}
+async function pollStats(){
+  const pc = currentPC(); if (!pc) return;
+  let st; try{ st = await pc.getStats(); }catch(e){ return; }
+  let selId = null, pair = null;
+  st.forEach(r => { if (r.type === 'transport' && r.selectedCandidatePairId) selId = r.selectedCandidatePairId; });
+  st.forEach(r => { if (r.type === 'candidate-pair' && (selId ? r.id === selId : (r.selected || (r.nominated && r.state === 'succeeded')))) pair = r; });
+  if (!pair) return;
+  const lc = st.get(pair.localCandidateId), rc = st.get(pair.remoteCandidateId);
+  const relay = (lc && lc.candidateType === 'relay') || (rc && rc.candidateType === 'relay');
+  const rtt = pair.currentRoundTripTime;
+  $('route').textContent = (relay ? 'через ретранслятор' : 'напрямую') + (rtt != null ? ' · ' + Math.round(rtt*1000) + ' мс' : '');
+  let n = rtt == null ? 3 : rtt < 0.08 ? 4 : rtt < 0.16 ? 3 : rtt < 0.3 ? 2 : 1;
+  st.forEach(r => {
+    if (r.type === 'inbound-rtp' && (r.kind || r.mediaType) === 'audio'){
+      const lost = r.packetsLost || 0, recv = r.packetsReceived || 0;
+      if (S.prevIn){ const dl = lost - S.prevIn.lost, dr = recv - S.prevIn.recv, loss = dl > 0 ? dl/(dl+dr) : 0;
+        if (loss > 0.08) n = Math.min(n, 1); else if (loss > 0.03) n = Math.min(n, 2); }
+      S.prevIn = {lost, recv};
+    }
+  });
+  setBars(n);
+}
+
+/* служебный канал режима «без сервера»: мгновенно сообщает, что собеседник положил трубку */
+const dcs = new WeakMap();
+function wireDc(pc, ch){
+  dcs.set(pc, ch);
+  ch.onmessage = e => {
+    if (pc !== S.pc) return;
+    if (e.data === 'bye') return remoteGone('left');
+    if (typeof e.data === 'string' && e.data[0] === '{'){ try{ const d = JSON.parse(e.data); if (d && d.t === 'cap') capRecv(d); }catch(_){} }
+  };
+  ch.onclose = () => { if (pc === S.pc && S.state === 'incall') remoteGone('left'); };
+}
+
+/* ---------- серверы-ретрансляторы: общие части ---------- */
+const RELAYS_DEFAULT = [
+  'wss://broker.emqx.io:8084/mqtt',
+  'wss://broker-cn.emqx.io:8084/mqtt',
+  'wss://broker.hivemq.com:8884/mqtt',
+  'wss://test.mosquitto.org:8081/mqtt',
+  'wss://mqtt.eclipseprojects.io/mqtt',
+  'wss://public:public@public.cloud.shiftr.io'
+];
+const te = new TextEncoder(), td = new TextDecoder();
+
+function u8cat(parts){
+  let n = 0; for (const p of parts) n += p.length;
+  const o = new Uint8Array(n); let k = 0;
+  for (const p of parts){ o.set(p, k); k += p.length; }
+  return o;
+}
+const b64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), ch => ch.charCodeAt(0));
+async function sha256hex(str){
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', te.encode(str)));
+  return [...h].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+function relayCanRun(){ return !!(window.WebSocket && window.crypto && crypto.subtle); }
+function relayList(){
+  const v = pref('relays').split(/[\s,]+/).filter(u => /^wss?:\/\/\S+/i.test(u));
+  return v.length ? v : RELAYS_DEFAULT;
+}
+
+/* минимальный MQTT 3.1.1 поверх WebSocket: CONNECT, SUBSCRIBE, PUBLISH QoS 0, PING */
+function mqttOpen(url, topic, onMsg, onUp){
+  const c = { url, ok:false, dead:false, ws:null, retry:0, timer:0, ping:0, opened:false, pid:1, topics:new Set(Array.isArray(topic) ? topic : [topic]) };
+  let wsUrl = url, user = '', pass = '';
+  try{
+    const u = new URL(url);
+    user = decodeURIComponent(u.username); pass = decodeURIComponent(u.password);
+    if (user || pass){ u.username = ''; u.password = ''; wsUrl = u.href; }
+  }catch(e){}
+  const str = x => { const b = te.encode(x); const o = new Uint8Array(b.length + 2); o[0] = b.length >> 8; o[1] = b.length & 255; o.set(b, 2); return o; };
+  const pkt = (h, parts) => {
+    const body = u8cat(parts), vl = []; let n = body.length;
+    do { let d = n & 127; n >>>= 7; if (n) d |= 128; vl.push(d); } while (n);
+    return u8cat([Uint8Array.of(h, ...vl), body]);
+  };
+  let buf = new Uint8Array(0);
+  const later = () => {
+    if (c.dead) return;
+    clearTimeout(c.timer);
+    c.timer = setTimeout(open, Math.min(15000, 1500 * Math.pow(2, c.retry++)));
+  };
+  const parse = ws => {
+    for (;;){
+      if (buf.length < 2) return;
+      let mul = 1, len = 0, i = 1, d;
+      do { if (i >= buf.length) return; d = buf[i++]; len += (d & 127) * mul; mul *= 128; } while ((d & 128) && i < 5);
+      if (buf.length < i + len) return;
+      const h = buf[0], body = buf.slice(i, i + len); buf = buf.slice(i + len);
+      const type = h >> 4;
+      if (type === 2){
+        if (body[1] === 0){ const parts = [Uint8Array.of(0, 1)]; for (const t of c.topics) parts.push(str(t), Uint8Array.of(0)); ws.send(pkt(0x82, parts)); }
+        else { try{ ws.close(); }catch(e){} }
+      } else if (type === 9){
+        if (c.ok) continue;
+        c.ok = true; c.retry = 0;
+        clearInterval(c.ping);
+        c.ping = setInterval(() => { try{ if (c.ws === ws && ws.readyState === 1) ws.send(Uint8Array.of(0xC0, 0)); }catch(e){} }, 25000);
+        onUp(c);
+      } else if (type === 3){
+        const tl = (body[0] << 8) | body[1];
+        let k = 2 + tl; if ((h >> 1) & 3) k += 2;
+        onMsg(body.subarray(k), c);
+      }
+    }
+  };
+  function open(){
+    if (c.dead) return;
+    let ws;
+    try{ ws = new WebSocket(wsUrl, ['mqtt']); }catch(e){ return later(); }
+    c.ws = ws; ws.binaryType = 'arraybuffer'; buf = new Uint8Array(0);
+    const cid = 'racia' + rnd(12, 'abcdefghijklmnopqrstuvwxyz0123456789');
+    const kill = setTimeout(() => { if (c.ws === ws && !c.ok){ try{ ws.close(); }catch(e){} } }, 10000);
+    ws.onopen = () => {
+      c.opened = true;
+      const parts = [str('MQTT'), Uint8Array.of(4, 0x02 | (user ? 0x80 : 0) | (pass ? 0x40 : 0), 0, 60), str(cid)];
+      if (user) parts.push(str(user));
+      if (pass) parts.push(str(pass));
+      try{ ws.send(pkt(0x10, parts)); }catch(e){}
+    };
+    ws.onmessage = e => { if (c.ws !== ws) return; buf = u8cat([buf, new Uint8Array(e.data)]); try{ parse(ws); }catch(err){ try{ ws.close(); }catch(_){} } };
+    ws.onclose = ws.onerror = () => {
+      clearTimeout(kill);
+      if (c.ws !== ws) return;
+      c.ws = null; c.ok = false; clearInterval(c.ping); later();
+    };
+  }
+  c.kick = () => {
+    if (c.dead || c.ok) return;
+    if (c.ws && c.ws.readyState <= 1) return;
+    clearTimeout(c.timer); c.retry = 0; open();
+  };
+  c.sub = t => {
+    if (c.topics.has(t)) return;
+    c.topics.add(t);
+    if (c.ok && c.ws && c.ws.readyState === 1){ c.pid = (c.pid % 60000) + 2; try{ c.ws.send(pkt(0x82, [Uint8Array.of(c.pid >> 8, c.pid & 255), str(t), Uint8Array.of(0)])); }catch(e){} }
+  };
+  c.unsub = t => {
+    if (!c.topics.delete(t)) return;
+    if (c.ok && c.ws && c.ws.readyState === 1){ c.pid = (c.pid % 60000) + 2; try{ c.ws.send(pkt(0xA2, [Uint8Array.of(c.pid >> 8, c.pid & 255), str(t)])); }catch(e){} }
+  };
+  c.publish = (t, payload) => {
+    const ws = c.ws;
+    if (!c.ok || !ws || ws.readyState !== 1 || ws.bufferedAmount > 128 * 1024) return;
+    try{ ws.send(pkt(0x30, [str(t), payload])); }catch(e){}
+  };
+  c.close = () => {
+    c.dead = true; clearTimeout(c.timer); clearInterval(c.ping);
+    const ws = c.ws; c.ws = null; c.ok = false;
+    if (ws){ try{ if (ws.readyState === 1) ws.send(Uint8Array.of(0xE0, 0)); ws.close(); }catch(e){} }
+  };
+  open();
+  return c;
+}
+
+async function relayCaps(){
+  if (RM.opusOK !== null) return RM.opusOK;
+  if (pref('codec') === 'ulaw'){ RM.opusOK = false; return false; }
+  try{
+    const a = typeof AudioEncoder !== 'undefined' &&
+      (await AudioEncoder.isConfigSupported({codec:'opus', sampleRate:48000, numberOfChannels:1, bitrate:24000})).supported;
+    const b = typeof AudioDecoder !== 'undefined' &&
+      (await AudioDecoder.isConfigSupported({codec:'opus', sampleRate:48000, numberOfChannels:1})).supported;
+    RM.opusOK = !!(a && b);
+  }catch(e){ RM.opusOK = false; }
+  return RM.opusOK;
+}
+
+/* ---------- звук через сервер: кодирование, буфер, воспроизведение ---------- */
+function makeResampler(from, to){
+  if (Math.abs(from - to) < 1) return x => x;
+  const step = from / to;
+  const alpha = to < from ? Math.min(1, 2 * Math.PI * to * 0.45 / from) : 1;
+  let pos = 0, last = 0, lp = 0;
+  return x => {
+    const n = x.length; if (!n) return x;
+    const src = new Float32Array(n + 1); src[0] = last;
+    for (let i = 0; i < n; i++){ lp += alpha * (x[i] - lp); src[i + 1] = lp; }
+    last = src[n];
+    const out = new Float32Array(Math.ceil((n - pos) / step) + 1);
+    let j = 0;
+    for (; pos < n; pos += step){ const i = Math.floor(pos), f = pos - i; out[j++] = src[i] + (src[i + 1] - src[i]) * f; }
+    pos -= n;
+    return out.subarray(0, j);
+  };
+}
+function linToUlaw(sample){
+  const BIAS = 0x84, CLIP = 32635;
+  const sign = (sample >> 8) & 0x80;
+  if (sign) sample = -sample;
+  if (sample > CLIP) sample = CLIP;
+  sample += BIAS;
+  let exponent = 7;
+  for (let mask = 0x4000; (sample & mask) === 0 && exponent > 0; exponent--, mask >>= 1);
+  const mantissa = (sample >> (exponent + 3)) & 0x0F;
+  return ~(sign | (exponent << 4) | mantissa) & 0xFF;
+}
+function ulawToLin(u){
+  u = ~u & 0xFF;
+  const sign = u & 0x80, exponent = (u >> 4) & 7, mantissa = u & 0x0F;
+  const sample = (((mantissa << 3) + 0x84) << exponent) - 0x84;
+  return sign ? -sample : sample;
+}
+async function loopback(stream){
+  /* звук друга прогоняем через местное WebRTC-соединение: так браузер гасит эхо */
+  let a, b;
+  try{
+    a = new RTCPeerConnection(); b = new RTCPeerConnection();
+    a.onicecandidate = e => { if (e.candidate) b.addIceCandidate(e.candidate).catch(() => {}); };
+    b.onicecandidate = e => { if (e.candidate) a.addIceCandidate(e.candidate).catch(() => {}); };
+    let got = null;
+    b.ontrack = e => { got = e.streams[0] || new MediaStream([e.track]); };
+    stream.getTracks().forEach(t => a.addTrack(t, stream));
+    await a.setLocalDescription(await a.createOffer());
+    await b.setRemoteDescription(a.localDescription);
+    await b.setLocalDescription(await b.createAnswer());
+    await a.setRemoteDescription(b.localDescription);
+    const ok = await new Promise(res => {
+      const t = setTimeout(() => res(false), 4000);
+      const chk = () => {
+        if (b.connectionState === 'connected' || b.iceConnectionState === 'connected' || b.iceConnectionState === 'completed'){ clearTimeout(t); res(true); }
+      };
+      b.addEventListener('connectionstatechange', chk); b.addEventListener('iceconnectionstatechange', chk); chk();
+    });
+    if (!ok || !got) throw new Error('loopback');
+    return { stream:got, close(){ try{ a.close(); b.close(); }catch(e){} } };
+  }catch(e){
+    try{ a && a.close(); b && b.close(); }catch(_){}
+    return null;
+  }
+}
+
+/* буфер воспроизведения: один и тот же код работает в аудиопотоке (AudioWorklet) и запасным путём */
+const PLAYER_SRC = `class PlayerCore{
+  constructor(rate){ this.rate = rate; this.q = []; this.len = 0; this.started = false; this.target = Math.round(rate * 0.08); this.over = 0; }
+  push(f){ if (f && f.length){ this.q.push(f); this.len += f.length; } }
+  drop(k){ while (k > 0 && this.q.length){ const h = this.q[0], off = h.off || 0, n = Math.min(k, h.length - off); k -= n; this.len -= n; if (off + n >= h.length) this.q.shift(); else h.off = off + n; } }
+  fill(out){
+    const N = out.length;
+    if (this.len > this.target + this.rate * 0.25) this.drop(this.len - this.target);
+    if (!this.started){ if (this.len >= this.target) this.started = true; else { out.fill(0); return false; } }
+    if (this.len > this.target + this.rate * 0.04){ if (++this.over * N > this.rate * 0.12){ this.drop(Math.round(this.rate * 0.01)); this.over = 0; } } else this.over = 0;
+    let o = 0;
+    while (o < N && this.q.length){ const h = this.q[0], off = h.off || 0, n = Math.min(N - o, h.length - off); out.set(h.subarray(off, off + n), o); o += n; this.len -= n; if (off + n >= h.length) this.q.shift(); else h.off = off + n; }
+    if (o < N){ out.fill(0, o); this.started = false; return true; }
+    return false;
+  }
+}`;
+const WORKLET_SRC = PLAYER_SRC + `
+class RaciaPlay extends AudioWorkletProcessor{
+  constructor(){ super(); this.p = new PlayerCore(sampleRate); this.port.onmessage = e => { const d = e.data; if (d.pcm) this.p.push(d.pcm); else if (d.target) this.p.target = d.target; }; }
+  process(i, outputs){ const out = outputs[0] && outputs[0][0]; if (out && this.p.fill(out)) this.port.postMessage(1); return true; }
+}
+class RaciaCap extends AudioWorkletProcessor{
+  constructor(){ super(); this.n = Math.round(sampleRate / 50); this.b = new Float32Array(this.n); this.k = 0; }
+  process(inputs){
+    const ch = inputs[0] && inputs[0][0];
+    if (ch) for (let i = 0; i < ch.length; i++){ this.b[this.k++] = ch[i]; if (this.k === this.n){ this.port.postMessage(this.b, [this.b.buffer]); this.b = new Float32Array(this.n); this.k = 0; } }
+    return true;
+  }
+}
+registerProcessor('racia-play', RaciaPlay);
+registerProcessor('racia-cap', RaciaCap);`;
+let PlayerCoreMain = null;
+function playerCore(rate){
+  if (!PlayerCoreMain) PlayerCoreMain = new Function(PLAYER_SRC + '\nreturn PlayerCore;')();
+  return new PlayerCoreMain(rate);
+}
+const wkReady = new WeakMap();
+function ensureWorklet(ac){
+  if (!ac.audioWorklet || typeof AudioWorkletNode === 'undefined') return Promise.reject(new Error('нет AudioWorklet'));
+  if (!wkReady.has(ac)){
+    const url = URL.createObjectURL(new Blob([WORKLET_SRC], {type:'application/javascript'}));
+    wkReady.set(ac, ac.audioWorklet.addModule(url));
+  }
+  return wkReady.get(ac);
+}
+
+/* ---------- канал до 4 человек ----------
+   Всё идёт через серверы-ретрансляторы (MQTT по защищённому веб-сокету): так связь проходит
+   даже там, где провайдер режет WebRTC. Каждый участник шлёт свой голос один раз, остальные
+   принимают и смешивают у себя. Между каждой парой программа пытается открыть прямой канал —
+   получилось, и голос этой пары идёт напрямую с минимальной задержкой.
+   Ключ канала (AES-GCM) создаёт тот, кто открыл канал, и выдаёт новым участникам, зашифровав
+   его парным ключом ECDH. Серверы видят только зашифрованные пакеты. */
+const MAX_PEOPLE = 4;
+const PKT_MS = 40;
+const RM = { gen:0, active:false, creator:false, code:'', base:'', conns:[], pid:'', kp:null, pub:null,
+  gkey:null, gkeyRaw:null, joined:false, members:new Map(), seen:new Map(), welcomed:new Map(),
+  idOut:0, txSeq:0, tx:null, wk:false, useOpus:false, opusOK:null, txVia:false,
+  helloT:0, pingT:0, probeT:0, tickT:0, t0:0, warned:false, mix:null, audioGen:0, ticks:0, rttBest:0 };
+
+function roomPeers(){ return [...RM.members.values()].sort((a, b) => a.color - b.color); }
+function peerName(m){ return m.name || ('Друг ' + m.color); }
+function myName(){ return (pref('name') || '').trim().slice(0, 20); }
+function roomTopic(x){ return RM.base + '/' + x; }
+
+async function importAes(raw){ return crypto.subtle.importKey('raw', raw, {name:'AES-GCM'}, false, ['encrypt', 'decrypt']); }
+async function pairKey(pubB64){
+  const pk = await crypto.subtle.importKey('raw', unb64(pubB64), {name:'ECDH', namedCurve:'P-256'}, false, []);
+  return crypto.subtle.deriveKey({name:'ECDH', public:pk}, RM.kp.privateKey, {name:'AES-GCM', length:128}, false, ['encrypt', 'decrypt']);
+}
+
+async function roomStart(code, create){
+  roomStop();
+  if (!relayCanRun()) throw new Error('браузер не умеет шифровать связь');
+  const gen = ++RM.gen;
+  Object.assign(RM, { active:true, creator:create, code, joined:false, t0:Date.now(), warned:false, idOut:0, txSeq:0, txVia:false, ticks:0 });
+  RM.members.clear(); RM.seen.clear(); RM.welcomed.clear();
+  RM.pid = rnd(8, 'abcdefghijkmnpqrstuvwxyz23456789');
+  const base = 'racia/v2/' + (await sha256hex('racia-room:' + code)).slice(0, 32);
+  await relayCaps();
+  const kp = await crypto.subtle.generateKey({name:'ECDH', namedCurve:'P-256'}, false, ['deriveKey']);
+  const pub = new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey));
+  let gk = null, raw = null;
+  if (create){ raw = crypto.getRandomValues(new Uint8Array(16)); gk = await importAes(raw); }
+  if (gen !== RM.gen) return;
+  RM.base = base; RM.kp = kp; RM.pub = pub;
+  if (create){ RM.gkeyRaw = raw; RM.gkey = gk; RM.joined = true; }
+  RM.conns = relayList().slice(0, 6).map(u => mqttOpen(u, [roomTopic('all'), roomTopic(RM.pid)], roomRx, roomConnUp));
+  RM.probeT = setInterval(roomProbe, 3000); setTimeout(roomProbe, 1200);
+  RM.helloT = setInterval(() => { if (RM.active && !RM.joined) roomHello(); }, 1500);
+  RM.pingT = setInterval(roomPing, 2000);
+  RM.tickT = setInterval(roomTick, 1000);
+  if (create) roomAudioStart();
+}
+function roomStop(){
+  RM.gen++;
+  for (const m of [...RM.members.values()]) roomDrop(m);
+  RM.members.clear();
+  roomAudioStop();
+  clearInterval(RM.helloT); clearInterval(RM.pingT); clearInterval(RM.probeT); clearInterval(RM.tickT);
+  const old = RM.conns; RM.conns = [];
+  if (old.length) setTimeout(() => old.forEach(c => c.close()), 400);
+  Object.assign(RM, { active:false, joined:false, gkey:null, gkeyRaw:null, kp:null, pub:null, txVia:false });
+  renderPeers();
+}
+function roomBye(){ if (RM.joined && RM.members.size) roomCtl({t:'bye'}, null, true); }
+function roomConnUp(){
+  if (!RM.active) return;
+  if (!RM.joined) roomHello();
+  else roomPing();
+  if (S.mode === 'room' && RM.creator && S.state === 'connecting') toWaiting();
+}
+/* замер скорости каждого сервера: пакет самому себе и обратно */
+function roomProbe(){
+  if (!RM.active || !RM.base) return;
+  const me = roomTopic(RM.pid);
+  for (const c of RM.conns){
+    if (!c.ok) continue;
+    const b = new Uint8Array(9); b[0] = 0x7F; new DataView(b.buffer).setFloat64(1, performance.now());
+    c.publish(me, b);
+  }
+}
+/* голос шлём через серверы, которые отвечают у всех, и среди них — через самые быстрые */
+function roomAudioConns(){
+  const ok = RM.conns.filter(c => c.ok);
+  if (!ok.length) return ok;
+  const ms = roomPeers().filter(m => m.links);
+  let cand = ok;
+  if (ms.length){ const both = ok.filter(c => ms.every(m => m.links[c.url] !== undefined)); if (both.length) cand = both; }
+  const score = c => (c.rtt || 400) + Math.max(0, ...ms.map(m => m.links[c.url] !== undefined ? m.links[c.url] : 400));
+  const best = Math.min(...cand.map(score));
+  RM.rttBest = best / 2;
+  return cand.filter(c => score(c) <= best * 1.5 + 80);
+}
+function roomPublish(topic, bytes, conns){ for (const c of (conns || RM.conns)) c.publish(topic, bytes); }
+function roomPlain(type, obj){ return u8cat([Uint8Array.of(type), te.encode(JSON.stringify(obj))]); }
+function roomHello(){
+  if (!RM.pub) return;
+  roomPublish(roomTopic('all'), roomPlain(0x01, {p:RM.pid, k:b64(RM.pub)}));
+}
+async function roomSend(type, payload, topic, conns, force){
+  const key = RM.gkey; if (!key) return;
+  const cs = conns || RM.conns;
+  RM.idOut = (RM.idOut + 1) >>> 0;
+  const hdr = new Uint8Array(13); hdr[0] = 0xE2; hdr.set(te.encode(RM.pid), 1); new DataView(hdr.buffer).setUint32(9, RM.idOut);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv, additionalData:hdr.subarray(1, 13)}, key, u8cat([Uint8Array.of(type), payload])));
+  if (force || RM.gkey === key) roomPublish(topic, u8cat([hdr, iv, ct]), cs);
+}
+function roomCtl(obj, to, force){ roomSend(2, te.encode(JSON.stringify(obj)), roomTopic(to || 'all'), null, force).catch(() => {}); }
+function roomPing(){
+  if (!RM.active || !RM.joined) return;
+  roomCtl({t:'ping', n:myName(), mu:S.muted ? 1 : 0, o:RM.opusOK ? 1 : 0,
+    l:RM.conns.filter(c => c.ok).map(c => [c.url, Math.round(c.rtt || 400)])});
+}
+
+async function roomRx(bytes, c){
+  if (!RM.active || !bytes.length) return;
+  const t = bytes[0];
+  if (t === 0x7F){
+    if (c && bytes.length >= 9){
+      const rtt = performance.now() - new DataView(bytes.buffer, bytes.byteOffset + 1, 8).getFloat64(0);
+      if (rtt >= 0 && rtt < 20000) c.rtt = c.rtt ? c.rtt * 0.6 + rtt * 0.4 : rtt;
+    }
+    return;
+  }
+  if (t === 0x01) return roomOnHello(bytes);
+  if (t === 0x02) return roomOnWelcome(bytes);
+  if (t === 0x03) return roomOnFull();
+  if (t !== 0xE2 || !RM.gkey || bytes.length < 41) return;
+  const from = td.decode(bytes.subarray(1, 9));
+  if (from === RM.pid) return;
+  const idKey = from + ':' + (((bytes[9] << 24) | (bytes[10] << 16) | (bytes[11] << 8) | bytes[12]) >>> 0);
+  if (RM.seen.has(idKey)) return;
+  RM.seen.set(idKey, 1);
+  if (RM.seen.size > 1600){ const it = RM.seen.keys(); for (let i = 0; i < 800; i++) RM.seen.delete(it.next().value); }
+  const key = RM.gkey;
+  let plain;
+  try{ plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:bytes.subarray(13, 25), additionalData:bytes.subarray(1, 13)}, key, bytes.subarray(25))); }
+  catch(e){ RM.seen.delete(idKey); return; }
+  if (key !== RM.gkey || !RM.active) return;
+  if (plain[0] === 2){
+    let d; try{ d = JSON.parse(td.decode(plain.subarray(1))); }catch(e){ return; }
+    if (!d || typeof d.t !== 'string') return;
+    if (d.t === 'bye'){ const m = RM.members.get(from); if (m) roomRemove(m, 'left'); return; }
+    roomOnCtl(roomMember(from), d);
+  } else if (plain[0] === 1){
+    const m = RM.members.get(from);
+    if (m){ m.last = Date.now(); roomAudioIn(m, plain.subarray(1)); }
+  }
+}
+async function roomOnHello(bytes){
+  let d; try{ d = JSON.parse(td.decode(bytes.subarray(1))); }catch(e){ return; }
+  if (!d || typeof d.p !== 'string' || d.p.length !== 8 || d.p === RM.pid || typeof d.k !== 'string') return;
+  if (!RM.joined || !RM.gkeyRaw || RM.members.has(d.p)) return;
+  const now = Date.now();
+  if (now - (RM.welcomed.get(d.p) || 0) < 3000) return;
+  RM.welcomed.set(d.p, now);
+  const count = 1 + RM.members.size;
+  if (count >= MAX_PEOPLE){ roomPublish(roomTopic(d.p), roomPlain(0x03, {p:RM.pid})); return; }
+  try{
+    const pk = await pairKey(d.k);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, pk, RM.gkeyRaw));
+    roomPublish(roomTopic(d.p), roomPlain(0x02, {p:RM.pid, k:b64(RM.pub), w:b64(u8cat([iv, ct])), c:count}));
+  }catch(e){}
+}
+async function roomOnWelcome(bytes){
+  if (RM.joined || !RM.kp) return;
+  let d; try{ d = JSON.parse(td.decode(bytes.subarray(1))); }catch(e){ return; }
+  if (!d || typeof d.k !== 'string' || typeof d.w !== 'string') return;
+  if (d.c >= MAX_PEOPLE) return roomOnFull();
+  try{
+    const pk = await pairKey(d.k), w = unb64(d.w);
+    const raw = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:w.subarray(0, 12)}, pk, w.subarray(12)));
+    if (RM.joined || raw.length !== 16) return;
+    const gk = await importAes(raw);
+    if (RM.joined) return;
+    RM.gkeyRaw = raw; RM.gkey = gk; RM.joined = true;
+    clearTimeout(S.joinTimer);
+    roomPing();
+    roomAudioStart();
+    if (S.mode === 'room' && S.state === 'connecting'){ toWaiting(); setStatus('Вы в канале. Собираем остальных…'); }
+  }catch(e){}
+}
+function roomOnFull(){
+  if (RM.joined || S.mode !== 'room') return;
+  stopAll(); toIdle('Канал заполнен: в нём уже ' + MAX_PEOPLE + ' человека.', 'err');
+}
+
+/* ---------- участники ---------- */
+function roomMember(pid){
+  let m = RM.members.get(pid);
+  if (m){ m.last = Date.now(); return m; }
+  const used = new Set([...RM.members.values()].map(x => x.color));
+  let color = 1; while (used.has(color)) color++;
+  m = { pid, name:'', color, last:Date.now(), muted:false, links:null, opus:true,
+    player:null, dec:null, ts:0, rxSeq:-1, lat:[], spMin:Infinity, lastArr:0, lastSeq:-1, targetMs:80, under:0,
+    rs8:null, rs48:null, meter:null, lv:0, up:null, early:{}, upTries:0, upRetry:0 };
+  RM.members.set(pid, m);
+  for (const c of RM.conns) c.sub(roomTopic('a/' + pid));
+  roomChanged('join', m);
+  /* прямой канал между парой открывает тот, чей номер меньше */
+  if (RM.pid < pid) setTimeout(() => upStart(m), 900);
+  return m;
+}
+function roomOnCtl(m, d){
+  if (d.t === 'ping'){
+    const nm = typeof d.n === 'string' ? d.n.slice(0, 20) : '';
+    const changed = nm !== m.name || !!d.mu !== m.muted;
+    m.name = nm; m.muted = !!d.mu; m.opus = d.o !== 0;
+    if (Array.isArray(d.l)){ const l = {}; for (const x of d.l) if (Array.isArray(x) && typeof x[0] === 'string') l[x[0]] = +x[1] || 400; m.links = l; }
+    if (changed){ renderPeers(); roomStatus(); }
+    roomCodec();
+  } else if (d.t === 'cap'){
+    capRecv(d, m);
+  } else if (d.t === 'sdp' || d.t === 'ice' || d.t === 'up'){
+    if (d.to !== RM.pid) return;
+    if (d.t === 'sdp') upOnSdp(m, d); else if (d.t === 'ice') upOnIce(m, d); else upOnUp(m, d);
+  }
+}
+function roomDrop(m){
+  upClose(m); clearTimeout(m.upRetry);
+  if (m.player){ m.player.stop(); m.player = null; }
+  try{ m.dec && m.dec.state !== 'closed' && m.dec.close(); }catch(e){}
+  m.dec = null;
+  for (const c of RM.conns) c.unsub(roomTopic('a/' + m.pid));
+}
+function roomRemove(m, why){
+  if (!RM.members.has(m.pid)) return;
+  roomDrop(m);
+  RM.members.delete(m.pid);
+  roomChanged(why === 'left' ? 'left' : 'lost', m);
+}
+function roomChanged(kind, m){
+  roomTxVia(); roomCodec();
+  renderPeers(); roomCount();
+  if (S.mode !== 'room') return;
+  const n = RM.members.size;
+  if (n && S.state !== 'incall'){ toCall(); roomStatus(); return; }
+  if (!n && S.state === 'incall'){
+    capStop(); clearInterval(S.tick); releaseWake(); $('timer').textContent = '00:00';
+    toWaiting();
+    setStatus(peerName(m) + (kind === 'join' ? '' : kind === 'left' ? ' вышел' : ' пропал') + '. Вы одни в канале.', 'warn');
+    return;
+  }
+  if (S.state === 'incall'){
+    if (kind === 'join') setStatus(peerName(m) + ' подключился', 'ok');
+    else setStatus(peerName(m) + (kind === 'left' ? ' вышел' : ' пропал'), 'warn');
+    clearTimeout(RM.statusT); RM.statusT = setTimeout(roomStatus, 2500);
+  }
+}
+function roomStatus(){
+  if (S.mode !== 'room' || S.state !== 'incall') return;
+  setStatus('На связи: ' + roomPeers().map(peerName).join(', '), 'ok');
+}
+function roomCount(){
+  const el = $('cnt');
+  if (S.mode !== 'room' || !RM.joined){ el.textContent = ''; $('btnInvite').hidden = true; return; }
+  const n = 1 + RM.members.size;
+  el.textContent = n + ' из ' + MAX_PEOPLE;
+  $('btnInvite').hidden = n >= MAX_PEOPLE;
+}
+/* строки громкости участников на экране рации */
+function renderPeers(){
+  const box = $('mPeers'); box.textContent = '';
+  for (const m of roomPeers()){
+    const row = document.createElement('div'); row.className = 'meter p' + m.color;
+    const nm = document.createElement('span'); nm.textContent = peerName(m).toUpperCase() + (m.muted ? ' ·' : '');
+    nm.title = peerName(m) + (m.muted ? ' (микрофон выключен)' : '');
+    const bar = document.createElement('i'); bar.id = 'mv-' + m.pid;
+    row.append(nm, bar); box.append(row);
+  }
+  if (S.mode === 'manual'){
+    const row = document.createElement('div'); row.className = 'meter p1';
+    const nm = document.createElement('span'); nm.textContent = 'ДРУГ';
+    const bar = document.createElement('i'); bar.id = 'mv-manual';
+    row.append(nm, bar); box.append(row);
+  }
+}
+function roomTxVia(){
+  const ms = roomPeers();
+  RM.txVia = ms.length > 0 && ms.some(m => !(m.up && m.up.selfUp && m.up.peerUp));
+}
+function roomTick(){
+  if (!RM.active) return;
+  RM.ticks++;
+  const now = Date.now();
+  for (const m of roomPeers()){
+    if (now - m.last > 10000){ roomRemove(m, 'lost'); continue; }
+    /* буфер каждого участника подстраивается под рывки его сети */
+    if (m.player && m.lat.length >= 10){
+      const s = m.lat.slice().sort((a, b) => a - b);
+      const ms = Math.max(40, Math.min(300, Math.round(s[Math.floor((s.length - 1) * 0.95)] + 25)));
+      if (Math.abs(ms - m.targetMs) >= 5){ m.targetMs = ms; m.player.setTarget(ms); }
+    }
+  }
+  if (S.mode === 'room' && (S.state === 'waiting' || S.state === 'connecting')){
+    const up = RM.conns.filter(c => c.ok).length, n = RM.conns.length;
+    if (n) $('route').textContent = 'серверы: ' + up + ' из ' + n;
+    if (S.state === 'connecting' && !up && !RM.warned && now - RM.t0 > 10000){
+      RM.warned = true;
+      setStatus('Серверы-ретрансляторы не отвечают из вашей сети. Откройте «Проверка связи» внизу.', 'err');
+    }
+  }
+  if (S.mode === 'room' && S.state === 'incall' && RM.ticks % 2 === 0) roomRoute();
+}
+async function roomRoute(){
+  const ms = roomPeers(); if (!ms.length) return;
+  const direct = ms.filter(m => m.up && m.up.selfUp && m.up.el);
+  let rtt = 0;
+  for (const m of direct){
+    try{
+      const st = await m.up.pc.getStats();
+      st.forEach(r => { if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.nominated && r.currentRoundTripTime != null) rtt = Math.max(rtt, r.currentRoundTripTime * 1000); });
+    }catch(e){}
+  }
+  let under = 0; for (const m of ms){ under += m.under; m.under = 0; }
+  const conns = roomAudioConns();
+  if (direct.length === ms.length){
+    $('route').textContent = 'напрямую' + (rtt ? ' · ' + Math.round(rtt) + ' мс' : '');
+    setBars(rtt < 80 ? 4 : rtt < 160 ? 3 : rtt < 300 ? 2 : 1);
+  } else {
+    const relayMs = ms.filter(m => !direct.includes(m));
+    const tgt = Math.max(...relayMs.map(m => m.targetMs));
+    const est = (conns.length ? RM.rttBest : 150) + tgt + PKT_MS + (RM.mix && RM.mix.loop ? 30 : 0);
+    $('route').textContent = (direct.length ? 'смешанно' : 'через сервер') + ' · ~' + Math.round(est / 10) * 10 + ' мс' + (RM.useOpus ? '' : ' · эконом');
+    setBars(under > 6 ? 1 : under > 2 ? 2 : under > 0 ? 3 : 4);
+  }
+}
+
+/* ---------- звук ---------- */
+async function roomAudioStart(){
+  const ac = S.ac; if (!ac || !S.localStream || RM.tx) return;
+  const gen = ++RM.audioGen;
+  let wk = false;
+  try{ await Promise.race([ensureWorklet(ac), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 2000))]); wk = true; }catch(e){}
+  if (gen !== RM.audioGen || !RM.active) return;
+  RM.wk = wk;
+  RM.useOpus = !!RM.opusOK;
+  txStart();
+  /* все голоса смешиваются в одном месте и играют через местное WebRTC-соединение — так браузер гасит эхо */
+  const dest = ac.createMediaStreamDestination();
+  const mix = RM.mix = { dest, loop:null, out:dest.stream };
+  if (pref('headphones') === '1'){ useRemote(mix.out, null); return; }
+  loopback(dest.stream).then(lp => {
+    if (RM.mix !== mix){ if (lp) lp.close(); return; }
+    mix.loop = lp; if (lp) mix.out = lp.stream;
+    useRemote(mix.out, null);
+  });
+}
+function roomAudioStop(){
+  RM.audioGen++;
+  txStop();
+  const mix = RM.mix; RM.mix = null;
+  if (mix && mix.loop) mix.loop.close();
+}
+function makePlayer(m){
+  const ac = S.ac; if (!ac || !RM.mix) return null;
+  const p = { node:null, an:null, sink:null };
+  if (RM.wk){
+    p.node = new AudioWorkletNode(ac, 'racia-play', {numberOfInputs:0, numberOfOutputs:1, outputChannelCount:[1]});
+    p.node.port.onmessage = () => { m.under++; };
+    p.push = f => { try{ p.node.port.postMessage({pcm:f}, [f.buffer]); }catch(e){ try{ p.node.port.postMessage({pcm:f}); }catch(_){} } };
+    p.setTarget = ms => p.node.port.postMessage({target:Math.round(ac.sampleRate * ms / 1000)});
+  } else {
+    const core = playerCore(ac.sampleRate);
+    p.node = ac.createScriptProcessor(1024, 1, 1);
+    p.node.onaudioprocess = e => { if (core.fill(e.outputBuffer.getChannelData(0))) m.under++; };
+    p.push = f => core.push(f);
+    p.setTarget = ms => { core.target = Math.round(ac.sampleRate * ms / 1000); };
+  }
+  p.node.connect(RM.mix.dest);
+  p.sink = ac.createGain(); p.sink.gain.value = 0; p.node.connect(p.sink); p.sink.connect(ac.destination);
+  p.an = ac.createAnalyser(); p.an.fftSize = 1024; p.node.connect(p.an);
+  const buf = new Float32Array(p.an.fftSize);
+  p.read = () => { p.an.getFloatTimeDomainData(buf); let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+    const db = 20 * Math.log10(Math.sqrt(s / buf.length) || 1e-8); return Math.max(0, Math.min(1, (db + 58) / 52)); };
+  p.stop = () => { try{ if (p.node.port) p.node.port.onmessage = null; p.node.onaudioprocess = null; p.node.disconnect(); p.sink.disconnect(); }catch(e){} };
+  p.setTarget(m.targetMs);
+  m.rs8 = makeResampler(8000, ac.sampleRate); m.rs48 = makeResampler(48000, ac.sampleRate);
+  return p;
+}
+function roomAudioIn(m, body){
+  if (body.length < 6) return;
+  /* с этим участником говорим напрямую — копия через сервер не нужна */
+  if (m.up && m.up.selfUp && m.up.el) return;
+  if (!m.player){ m.player = makePlayer(m); if (!m.player) return; }
+  const codec = body[0];
+  const seq = ((body[1] << 24) | (body[2] << 16) | (body[3] << 8) | body[4]) >>> 0;
+  if (m.rxSeq >= 0 && seq <= m.rxSeq && m.rxSeq - seq < 100000) return;
+  m.rxSeq = seq;
+  const now = performance.now();
+  if (now - m.lastArr > 400 || m.lastSeq < 0 || seq < m.lastSeq || seq - m.lastSeq > 25) m.spMin = Infinity;
+  const tr = now - seq * PKT_MS;
+  if (tr < m.spMin) m.spMin = tr;
+  m.lat.push(tr - m.spMin); if (m.lat.length > 150) m.lat.shift();
+  m.lastArr = now; m.lastSeq = seq;
+  const data = body.subarray(5);
+  if (codec === 2){
+    const f = new Float32Array(data.length);
+    for (let i = 0; i < data.length; i++) f[i] = ulawToLin(data[i]) / 32768;
+    m.player.push(m.rs8(f));
+  } else if (codec === 1){
+    if (!m.dec){
+      if (typeof AudioDecoder === 'undefined') return;
+      try{
+        const dec = new AudioDecoder({
+          output: ad => {
+            const f = new Float32Array(ad.numberOfFrames);
+            try{ ad.copyTo(f, {planeIndex:0, format:'f32-planar'}); }catch(e){ try{ ad.copyTo(f, {planeIndex:0}); }catch(_){} }
+            ad.close();
+            if (m.player && m.dec === dec) m.player.push(m.rs48(f));
+          },
+          error: () => { if (m.dec === dec) m.dec = null; }
+        });
+        dec.configure({codec:'opus', sampleRate:48000, numberOfChannels:1});
+        m.dec = dec;
+      }catch(e){ m.dec = null; return; }
+    }
+    const n = data[0]; let k = 1;
+    for (let i = 0; i < n && k + 2 <= data.length; i++){
+      const len = (data[k] << 8) | data[k + 1]; k += 2;
+      if (k + len > data.length) break;
+      try{ m.dec.decode(new EncodedAudioChunk({type:'key', timestamp:m.ts, data:data.slice(k, k + len)})); }catch(e){}
+      k += len; m.ts += 20000;
+    }
+  }
+}
+function sendAudio(codec, body){
+  RM.txSeq = (RM.txSeq + 1) >>> 0;
+  const h = new Uint8Array(5); h[0] = codec; new DataView(h.buffer).setUint32(1, RM.txSeq);
+  roomSend(1, u8cat([h, body]), roomTopic('a/' + RM.pid), roomAudioConns()).catch(() => {});
+}
+function txFlushOpus(tx){
+  const ch = tx.chunks; tx.chunks = [];
+  if (!ch.length) return;
+  const parts = [Uint8Array.of(ch.length)];
+  for (const b of ch) parts.push(Uint8Array.of(b.length >> 8, b.length & 255), b);
+  sendAudio(1, u8cat(parts));
+}
+function txStart(){
+  const ac = S.ac; if (!ac || !S.localStream) return;
+  txStop();
+  const tx = { src:ac.createMediaStreamSource(S.localStream), node:null, enc:null, chunks:[], ts:0, ul:new Float32Array(0), rs:null, sink:null };
+  if (RM.useOpus){
+    try{
+      tx.enc = new AudioEncoder({
+        output: ch => { const b = new Uint8Array(ch.byteLength); ch.copyTo(b); tx.chunks.push(b); if (tx.chunks.length >= 2) txFlushOpus(tx); },
+        error: () => { tx.enc = null; tx.rs = makeResampler(ac.sampleRate, 8000); }
+      });
+      tx.enc.configure({codec:'opus', sampleRate:48000, numberOfChannels:1, bitrate:24000});
+      tx.rs = makeResampler(ac.sampleRate, 48000);
+    }catch(e){ tx.enc = null; RM.opusOK = false; }
+  }
+  if (!tx.enc){ RM.useOpus = false; tx.rs = makeResampler(ac.sampleRate, 8000); }
+  const feed = x => { if (RM.tx === tx && RM.txVia && !S.muted) txPush(tx, x); };
+  if (RM.wk){
+    tx.node = new AudioWorkletNode(ac, 'racia-cap', {numberOfInputs:1, numberOfOutputs:1, outputChannelCount:[1]});
+    tx.node.port.onmessage = e => feed(e.data);
+  } else {
+    tx.node = ac.createScriptProcessor(1024, 1, 1);
+    tx.node.onaudioprocess = e => feed(e.inputBuffer.getChannelData(0).slice());
+  }
+  tx.src.connect(tx.node);
+  tx.sink = ac.createGain(); tx.sink.gain.value = 0; tx.node.connect(tx.sink); tx.sink.connect(ac.destination);
+  RM.tx = tx;
+}
+function txPush(tx, x){
+  const pcm = tx.rs(x); if (!pcm.length) return;
+  if (tx.enc){
+    try{
+      const ad = new AudioData({format:'f32-planar', sampleRate:48000, numberOfFrames:pcm.length, numberOfChannels:1,
+        timestamp:Math.round(tx.ts * 1e6 / 48000), data:pcm});
+      tx.ts += pcm.length; tx.enc.encode(ad); ad.close();
+    }catch(e){}
+  } else {
+    /* эконом-звук: 8 кГц, μ-law, ровно 40 мс в пакете */
+    const all = new Float32Array(tx.ul.length + pcm.length); all.set(tx.ul); all.set(pcm, tx.ul.length);
+    let k = 0;
+    for (; k + 320 <= all.length; k += 320){
+      const u = new Uint8Array(320);
+      for (let i = 0; i < 320; i++) u[i] = linToUlaw(Math.max(-32767, Math.min(32767, Math.round(all[k + i] * 32767))));
+      sendAudio(2, u);
+    }
+    tx.ul = all.slice(k);
+  }
+}
+function txStop(){
+  const tx = RM.tx; RM.tx = null;
+  if (!tx) return;
+  try{ if (tx.node.port) tx.node.port.onmessage = null; tx.node.onaudioprocess = null; tx.node.disconnect(); tx.src.disconnect(); tx.sink && tx.sink.disconnect(); }catch(e){}
+  try{ tx.enc && tx.enc.state !== 'closed' && tx.enc.close(); }catch(e){}
+}
+
+/* ---------- прямые каналы между парами ---------- */
+function upMake(m, a){
+  upClose(m);
+  const pc = new RTCPeerConnection({iceServers:iceServers()});
+  const u = m.up = { pc, a, selfUp:false, peerUp:false, stream:null, cand:[], remoteSet:false, timer:0, downT:0, el:null, meter:null };
+  pc.onicecandidate = e => { if (e.candidate && m.up === u) roomCtl({t:'ice', to:m.pid, a, c:e.candidate.toJSON()}, m.pid); };
+  pc.ontrack = e => { if (m.up !== u) return; u.stream = e.streams[0] || new MediaStream([e.track]); if (u.selfUp) upApply(m); };
+  pc.onconnectionstatechange = () => upState(m, u);
+  pc.oniceconnectionstatechange = () => upState(m, u);
+  u.timer = setTimeout(() => { if (m.up === u && !u.selfUp) upFail(m); }, 12000);
+  return u;
+}
+async function upStart(m){
+  if (!RM.joined || RM.members.get(m.pid) !== m || m.up || pref('forceRelay') === '1' || !S.localStream || RM.pid > m.pid) return;
+  const a = rnd(8, 'abcdefghijkmnpqrstuvwxyz23456789');
+  const u = upMake(m, a);
+  try{
+    S.localStream.getAudioTracks().forEach(t => u.pc.addTrack(t, S.localStream));
+    await u.pc.setLocalDescription(await u.pc.createOffer());
+    if (m.up === u) roomCtl({t:'sdp', to:m.pid, a, d:{type:'offer', sdp:u.pc.localDescription.sdp}}, m.pid);
+  }catch(e){ if (m.up === u) upFail(m); }
+}
+async function upOnSdp(m, msg){
+  const d = msg.d;
+  if (!d || typeof d.sdp !== 'string' || typeof msg.a !== 'string') return;
+  if (d.type === 'offer' && RM.pid > m.pid){
+    if (pref('forceRelay') === '1' || !S.localStream) return;
+    const u = upMake(m, msg.a);
+    try{
+      await u.pc.setRemoteDescription({type:'offer', sdp:d.sdp}); u.remoteSet = true;
+      upFlush(u, (m.early[msg.a] || []).concat(u.cand)); delete m.early[msg.a];
+      S.localStream.getAudioTracks().forEach(t => u.pc.addTrack(t, S.localStream));
+      await u.pc.setLocalDescription(await u.pc.createAnswer());
+      if (m.up === u) roomCtl({t:'sdp', to:m.pid, a:msg.a, d:{type:'answer', sdp:u.pc.localDescription.sdp}}, m.pid);
+    }catch(e){ if (m.up === u) upFail(m); }
+  } else if (d.type === 'answer' && m.up && m.up.a === msg.a){
+    const u = m.up;
+    try{ await u.pc.setRemoteDescription({type:'answer', sdp:d.sdp}); u.remoteSet = true; upFlush(u, u.cand); }
+    catch(e){ if (m.up === u) upFail(m); }
+  }
+}
+function upFlush(u, list){ u.cand = []; for (const c of list) u.pc.addIceCandidate(c).catch(() => {}); }
+function upOnIce(m, msg){
+  if (!msg.c || typeof msg.a !== 'string') return;
+  const u = m.up;
+  if (u && u.a === msg.a){ if (u.remoteSet) u.pc.addIceCandidate(msg.c).catch(() => {}); else u.cand.push(msg.c); }
+  else (m.early[msg.a] = m.early[msg.a] || []).push(msg.c);
+}
+function upState(m, u){
+  if (m.up !== u) return;
+  const st = linkState(u.pc);
+  if (st === 'connected'){
+    clearTimeout(u.downT); u.downT = 0;
+    if (!u.selfUp){ u.selfUp = true; clearTimeout(u.timer); roomCtl({t:'up', to:m.pid, a:u.a, v:1}, m.pid); upApply(m); }
+  } else if (st === 'failed' || st === 'closed'){
+    upFail(m);
+  } else if (st === 'disconnected' && u.selfUp){
+    if (!u.downT) u.downT = setTimeout(() => { u.downT = 0; if (m.up === u) upFail(m); }, 2500);
+  }
+}
+function upApply(m){
+  const u = m.up; if (!u) return;
+  if (u.selfUp && u.stream && !u.el){
+    const el = document.createElement('audio');
+    el.autoplay = true; el.setAttribute('playsinline', ''); el.hidden = true;
+    el.srcObject = u.stream; el.volume = (+pref('vol') || 100) / 100;
+    document.body.append(el);
+    el.play().catch(() => { $('btnSound').hidden = false; });
+    u.el = el; u.meter = makeMeter(u.stream);
+  }
+  roomTxVia();
+}
+function upOnUp(m, msg){
+  const u = m.up;
+  if (!u || msg.a !== u.a) return;
+  if (msg.v){ u.peerUp = true; roomTxVia(); }
+  else upFail(m, true);
+}
+function upFail(m, silent){
+  const u = m.up;
+  upClose(m);
+  if (u && !silent) roomCtl({t:'up', to:m.pid, a:u.a, v:0}, m.pid);
+  roomTxVia();
+  if (RM.pid < m.pid && RM.members.get(m.pid) === m && m.upTries < 3 && pref('forceRelay') !== '1'){
+    clearTimeout(m.upRetry); m.upRetry = setTimeout(() => upStart(m), 15000 * ++m.upTries);
+  }
+}
+function upClose(m){
+  const u = m.up; if (!u) return;
+  m.up = null;
+  clearTimeout(u.timer); clearTimeout(u.downT);
+  if (u.el){ try{ u.el.srcObject = null; u.el.remove(); }catch(e){} }
+  if (u.meter) u.meter.disconnect();
+  try{ u.pc.close(); }catch(e){}
+}
+function allAudioEls(){ return [$('remote'), ...roomPeers().map(m => m.up && m.up.el).filter(Boolean)]; }
+
+/* ---------- создать канал / войти / выйти ---------- */
+async function roomCreate(){
+  stopAll(); S.mode = 'room';
+  try{ await ensureMic(); }catch(e){ return failMic(e); }
+  S.code = rnd(6);
+  setChan(fmt(S.code));
+  toConnecting('Открываем канал…');
+  try{ await roomStart(S.code, true); }catch(e){ stopAll(); return toIdle('Не удалось открыть канал: ' + e.message, 'err'); }
+  S.joinTimer = setTimeout(() => {
+    if (S.mode === 'room' && S.state === 'connecting'){
+      stopAll(); toIdle('Серверы-ретрансляторы не отвечают. Проверьте интернет или откройте «Проверка связи» внизу.', 'err');
+    }
+  }, 20000);
+}
+async function roomJoin(){
+  const code = $('inCode').value.replace(/\D/g, '');
+  if (code.length !== 6){ setStatus('Код канала — 6 цифр. Проверьте, что ввели его полностью.', 'err'); $('inCode').focus(); return; }
+  stopAll(); S.mode = 'room'; S.code = code;
+  try{ await ensureMic(); }catch(e){ return failMic(e); }
+  setChan(fmt(code));
+  toConnecting('Подключаемся к каналу ' + fmt(code) + '…', 'Ищем канал через серверы-ретрансляторы. Страница Рации у того, кто уже в канале, должна быть открыта, а не свёрнута.');
+  try{ await roomStart(code, false); }catch(e){ stopAll(); return toIdle('Не удалось подключиться: ' + e.message, 'err'); }
+  S.joinTimer = setTimeout(() => {
+    if (S.mode === 'room' && !RM.joined){
+      const up = RM.conns.some(c => c.ok);
+      stopAll();
+      toIdle(up ? 'Канал не найден за минуту. Проверьте код. Страница Рации у тех, кто в канале, должна быть открыта на экране.'
+                : 'Серверы-ретрансляторы не отвечают из вашей сети. Откройте «Проверка связи» внизу.', 'err');
+    }
+  }, 60000);
+}
+function roomLeave(msg){
+  roomBye();
+  stopAll(); toIdle(msg || 'Вы вышли из канала');
+}
+
+/* Opus — только если его понимают все в канале, иначе эконом-звук */
+function roomCodec(){
+  if (!RM.tx) return;
+  const want = !!RM.opusOK && roomPeers().every(m => m.opus);
+  if (want !== RM.useOpus){ RM.useOpus = want; txStart(); }
+}
+
+/* ---------- проверка связи ---------- */
+function hostOf(url){ try{ return new URL(url).host; }catch(e){ return url; } }
+function testBroker(url){
+  return new Promise((res, rej) => {
+    const t0 = performance.now(), tok = rnd(10);
+    const topic = 'racia/test/' + rnd(16, 'abcdefghijklmnopqrstuvwxyz0123456789');
+    let done = false, c = null, timer = 0;
+    const fin = (ok, v) => { if (done) return; done = true; clearTimeout(timer); if (c) c.close(); ok ? res(v) : rej(v); };
+    c = mqttOpen(url, topic, msg => { if (td.decode(msg) === tok) fin(true, Math.round(performance.now() - t0) + ' мс'); }, cc => cc.publish(topic, te.encode(tok)));
+    timer = setTimeout(() => fin(false, c.opened ? 'не отвечает' : 'недоступен'), 9000);
+  });
+}
+async function testIce(relay){
+  const list = iceServers().filter(x => [].concat(x.urls).some(u => relay ? /^turns?:/i.test(u) : /^stun:/i.test(u)));
+  if (!list.length) throw 'не задан';
+  const pc = new RTCPeerConnection({iceServers:list, iceTransportPolicy: relay ? 'relay' : 'all'});
+  try{
+    pc.createDataChannel('t');
+    const want = relay ? 'relay' : 'srflx';
+    const found = new Promise(res => {
+      const t = setTimeout(() => res(false), 8000);
+      pc.onicecandidate = e => {
+        if (!e.candidate){ clearTimeout(t); res(false); return; }
+        if (((e.candidate.candidate || '').match(/ typ (\w+)/) || [])[1] === want){ clearTimeout(t); res(true); }
+      };
+    });
+    await pc.setLocalDescription(await pc.createOffer());
+    if (!(await found)) throw 'не отвечает';
+    return 'работает';
+  } finally { try{ pc.close(); }catch(e){} }
+}
+async function runDiag(){
+  const list = $('diagList'), rows = [];
+  list.textContent = ''; $('diagSum').hidden = true; $('btnDiagCopy').hidden = true; $('btnDiag').disabled = true;
+  const row = (name, kind) => {
+    const li = document.createElement('li');
+    const ic = document.createElement('span'), nm = document.createElement('span'), rs = document.createElement('span');
+    ic.className = rs.className = 'wait'; ic.textContent = '…'; nm.textContent = name; rs.textContent = 'проверяем';
+    li.append(ic, nm, rs); list.append(li);
+    const r = {name, kind, ok:null, info:''}; rows.push(r);
+    return p => p.then(v => [true, v], e => [false, typeof e === 'string' ? e : 'ошибка']).then(([ok, v]) => {
+      r.ok = ok; r.info = v; ic.className = rs.className = ok ? 'ok' : 'bad'; ic.textContent = ok ? '✓' : '✗'; rs.textContent = v;
+    });
+  };
+  const jobs = [];
+  for (const u of relayList()) jobs.push(row('Ретранслятор голоса: ' + hostOf(u), 'relay')(testBroker(u)));
+  jobs.push(row('Прямая связь: внешний адрес (STUN)', 'stun')(testIce(false)));
+  jobs.push(row('Прямая связь: ретранслятор TURN', 'turn')(testIce(true)));
+  await Promise.all(jobs);
+  const rel = rows.filter(r => r.kind === 'relay'), relOk = rel.filter(r => r.ok);
+  const sum = relOk.length
+    ? 'Связь через сервер должна работать: отвечает ' + relOk.length + ' из ' + rel.length + '. Для разговора нужно, чтобы хотя бы один и тот же ретранслятор отвечал у вас обоих.'
+    : 'Ни один ретранслятор голоса не отвечает из этой сети. Попробуйте другую сеть, например мобильный интернет вместо Wi-Fi.';
+  $('diagSum').textContent = sum; $('diagSum').hidden = false;
+  $('btnDiagCopy').hidden = false; $('btnDiag').disabled = false;
+  S.diagText = 'Рация, версия ' + VERSION + ', проверка ' + new Date().toLocaleString('ru-RU') + '\n' +
+    rows.map(r => (r.ok ? '✓ ' : '✗ ') + r.name + ' — ' + r.info).join('\n') + '\n' + sum;
+}
+
+/* ---------- связь без сервера: обмен кодами ---------- */
+function toB64(bytes){ let s = ''; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function fromB64(t){ t = t.replace(/-/g,'+').replace(/_/g,'/'); while (t.length % 4) t += '=';
+  const s = atob(t), b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; }
+async function encodeDesc(d){
+  const json = JSON.stringify({t:d.type, s:d.sdp});
+  if (window.CompressionStream){
+    try{
+      const st = new Blob([json]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+      return 'R1' + toB64(new Uint8Array(await new Response(st).arrayBuffer()));
+    }catch(e){}
+  }
+  return 'R0' + toB64(new TextEncoder().encode(json));
+}
+async function decodeDesc(text){
+  const bad = new Error('Код не распознан. Скопируйте его целиком, без лишних символов.');
+  const t = (text || '').replace(/[\s"'«»]/g, '');
+  if (!/^R[01][A-Za-z0-9_-]{40,}$/.test(t)) throw bad;
+  let json;
+  try{
+    const bytes = fromB64(t.slice(2));
+    if (t[1] === '1'){
+      if (!window.DecompressionStream) throw new Error('Ваш браузер не читает этот код. Обновите браузер.');
+      const st = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      json = await new Response(st).text();
+    } else json = new TextDecoder().decode(bytes);
+    const o = JSON.parse(json);
+    if (!o || !o.t || !o.s) throw bad;
+    return {type:o.t, sdp:o.s};
+  }catch(e){ throw e.message && e.message.startsWith('Ваш') ? e : bad; }
+}
+function gathered(pc, ms){
+  if (pc.iceGatheringState === 'complete') return Promise.resolve();
+  return new Promise(res => {
+    const done = () => { clearTimeout(t); pc.removeEventListener('icegatheringstatechange', chk); res(); };
+    const chk = () => { if (pc.iceGatheringState === 'complete') done(); };
+    const t = setTimeout(done, ms || 5000);
+    pc.addEventListener('icegatheringstatechange', chk);
+  });
+}
+function newPC(){
+  let pc;
+  try{ pc = new RTCPeerConnection({iceServers:iceServers()}); }
+  catch(e){ pc = new RTCPeerConnection({iceServers:iceServers().slice(0,3)}); setStatus('Адрес TURN-сервера в настройках указан неверно — работаем без него.', 'warn'); }
+  pc.ontrack = e => { if (S.pc === pc) useRemote(e.streams[0] || new MediaStream([e.track]), pc); };
+  pc.ondatachannel = e => wireDc(pc, e.channel);
+  S.pc = pc; watchPC(pc);
+  return pc;
+}
+function resetManual(){
+  $('mA').hidden = true; $('mB').hidden = true;
+  for (const id of ['mOffer','mAnswerIn','mOfferIn','mAnswer']) $(id).value = '';
+}
+async function manualStartA(){
+  stopAll(); resetManual(); S.mode = 'manual'; S.role = 'host';
+  try{ await ensureMic(); }catch(e){ return failMic(e); }
+  $('mA').hidden = false; setChan('РУЧНОЙ');
+  toConnecting('Готовим код приглашения…', 'Связь без сервера: обменяйтесь кодами в разделе ниже.');
+  const pc = newPC();
+  S.localStream.getTracks().forEach(t => pc.addTrack(t, S.localStream));
+  wireDc(pc, pc.createDataChannel('ctl'));
+  try{
+    await pc.setLocalDescription(await pc.createOffer());
+    await gathered(pc, 5000);
+    if (S.pc !== pc) return;
+    $('mOffer').value = await encodeDesc(pc.localDescription);
+    setStatus('Отправьте другу код приглашения и вставьте его ответ');
+    $('mOffer').scrollIntoView({block:'center', behavior:'smooth'});
+  }catch(e){ stopAll(); toIdle('Не удалось подготовить приглашение: ' + (e.message || e.name), 'err'); }
+}
+async function manualConnect(){
+  const pc = S.pc;
+  if (!pc || S.mode !== 'manual' || S.role !== 'host'){ setStatus('Сначала нажмите «Я начинаю».', 'err'); return; }
+  let d; try{ d = await decodeDesc($('mAnswerIn').value); }catch(e){ return setStatus(e.message, 'err'); }
+  if (d.type !== 'answer') return setStatus('Это не код-ответ. Вставьте код, который друг прислал в ответ на ваше приглашение.', 'err');
+  try{ await pc.setRemoteDescription(d); setStatus('Соединяемся…'); }
+  catch(e){ setStatus('Код-ответ не подходит к этому приглашению. Начните заново: «Я начинаю».', 'err'); }
+}
+function manualStartB(){
+  stopAll(); resetManual(); S.mode = 'manual'; S.role = 'guest';
+  $('mB').hidden = false; setChan('РУЧНОЙ');
+  toConnecting('Вставьте код приглашения от друга', 'Связь без сервера: обменяйтесь кодами в разделе ниже.');
+  $('mOfferIn').focus();
+}
+async function manualMakeAnswer(){
+  if (S.mode !== 'manual' || S.role !== 'guest'){ manualStartB(); }
+  let d; try{ d = await decodeDesc($('mOfferIn').value); }catch(e){ return setStatus(e.message, 'err'); }
+  if (d.type !== 'offer') return setStatus('Это не код приглашения. Вставьте первый код, который прислал друг.', 'err');
+  const offerText = $('mOfferIn').value;
+  try{ await ensureMic(); }catch(e){ failMic(e); $('manual').open = true; return; }
+  if (S.pc){ try{ S.pc.close(); }catch(e){} }
+  const pc = newPC();
+  try{
+    await pc.setRemoteDescription(d);
+    S.localStream.getTracks().forEach(t => pc.addTrack(t, S.localStream));
+    await pc.setLocalDescription(await pc.createAnswer());
+    setStatus('Готовим код-ответ…');
+    await gathered(pc, 5000);
+    if (S.pc !== pc) return;
+    $('mOfferIn').value = offerText;
+    $('mAnswer').value = await encodeDesc(pc.localDescription);
+    setStatus('Отправьте другу код-ответ. Связь начнётся, когда он его вставит.');
+    $('mAnswer').scrollIntoView({block:'center', behavior:'smooth'});
+  }catch(e){ setStatus('Код приглашения не подошёл. Попросите друга начать заново.', 'err'); }
+}
+
+/* ---------- субтитры: каждое слово загорается ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const cap = { on:false, rec:null, done:0, line:0, pending:'', fails:0, quick:0, t0:0, heard:false, demo:0, starts:0, msg:'' };
+/* распознавание речи прямо на устройстве (Vosk), без Google и без интернета после первой загрузки */
+const VOSK = { state:'idle', pct:0, model:null, rec:null, src:null, node:null, loading:null, off:0 };
+const capLines = new Map();
+const MAX_LINES = 5;
+
+function capLine(who, id, label, color){
+  const key = who + '|' + id;
+  let L = capLines.get(key);
+  if (L) return L;
+  const el = document.createElement('div'); el.className = 'cl ' + (who === 'me' ? 'me' : 'friend c' + (color || 1));
+  const tag = document.createElement('span'); tag.className = 'who'; tag.textContent = who === 'me' ? 'ВЫ' : String(label || 'ДРУГ').toUpperCase();
+  tag.title = who === 'me' ? 'Вы' : String(label || 'Друг');
+  const ws = document.createElement('span'); ws.className = 'ws';
+  el.append(tag, ws); $('lines').append(el);
+  L = {el, ws, words:[], key}; capLines.set(key, L);
+  $('capEmpty').hidden = true;
+  const all = [...capLines.values()];
+  all.forEach((x, i) => x.el.classList.toggle('old', i < all.length - 2));
+  while (all.length > MAX_LINES){
+    const x = all.shift(); capLines.delete(x.key);
+    x.el.classList.add('out'); setTimeout(() => x.el.remove(), 600);
+  }
+  return L;
+}
+function capShow(who, id, text, final, label, color){
+  const words = String(text || '').trim().split(/\s+/).filter(Boolean).slice(0, 80);
+  if (!words.length){ const L = capLines.get(who + '|' + id); if (L && final) L.el.classList.add('fin'); return; }
+  const L = capLine(who, id, label, color);
+  let fresh = 0;
+  words.forEach((w, i) => {
+    const old = L.words[i];
+    if (old && old.textContent === w) return;
+    const s = document.createElement('span'); s.className = 'w'; s.textContent = w;
+    s.style.setProperty('--d', (fresh++ * 90) + 'ms');
+    if (old) old.replaceWith(s); else L.ws.append(s);
+    L.words[i] = s;
+  });
+  L.words.splice(words.length).forEach(s => s.remove());
+  L.el.classList.toggle('fin', !!final);
+}
+function capClear(){
+  cap.demo = 0; capLines.clear(); $('lines').textContent = '';
+  $('capEmpty').hidden = false; $('capDemo').hidden = true;
+}
+function capDemo(){
+  if (capLines.size) return;
+  const run = cap.demo = Date.now();
+  const script = [['friend', 'Привет! Слышишь меня?'], ['me', 'Слышу отлично, связь есть']];
+  $('capDemo').hidden = false;
+  let t = 500;
+  script.forEach(([who, phrase], li) => {
+    const words = phrase.split(' ');
+    words.forEach((w, i) => {
+      t += 340;
+      setTimeout(() => { if (cap.demo === run) capShow(who, 'demo' + li, words.slice(0, i + 1).join(' '), i === words.length - 1); }, t);
+    });
+    t += 800;
+  });
+}
+function sendCtl(obj){
+  if (S.mode === 'room') return roomCtl(obj);
+  try{
+    if (S.mode === 'manual'){ const dc = S.pc && dcs.get(S.pc); if (dc && dc.readyState === 'open') dc.send(JSON.stringify(obj)); }
+  }catch(e){}
+}
+function capEmit(text, final){
+  text = String(text || '').trim().slice(0, 400);
+  if (!text) return;
+  capShow('me', 'm' + cap.line, text, final);
+  sendCtl({t:'cap', id:cap.line, s:text, f:!!final});
+  cap.pending = final ? '' : text;
+  if (final) cap.line++;
+}
+function capRecv(d, m){
+  if (!d || typeof d.s !== 'string') return;
+  capShow(m ? 'p' + m.pid : 'friend', 'f' + String(d.id).slice(0, 12), d.s.slice(0, 400), !!d.f, m ? peerName(m) : 'Друг', m ? m.color : 1);
+}
+function voskOK(){
+  const AC = window.AudioContext || window.webkitAudioContext;
+  return typeof WebAssembly === 'object' && !!window.Worker && !!window.indexedDB && !!window.fetch && !!AC && 'createScriptProcessor' in AC.prototype;
+}
+function capEngine(){ if (VOSK.state !== 'failed' && voskOK()) return 'vosk'; return SR ? 'web' : null; }
+function capWanted(){ return cap.on && S.state === 'incall' && !S.muted && !!capEngine(); }
+function capSync(){
+  const want = capWanted(), eng = capEngine();
+  if (!(want && eng === 'vosk')) voskDetach();
+  if (!(want && eng === 'web') && cap.rec){ const r = cap.rec; cap.rec = null; try{ r.abort(); }catch(e){} }
+  if (!want){ if (cap.pending) capEmit(cap.pending, true); return; }
+  if (eng === 'vosk'){
+    if (VOSK.model) voskAttach();
+    else ensureVosk().then(() => { if (capWanted() && capEngine() === 'vosk') voskAttach(); }, () => {});
+  } else if (eng === 'web' && !cap.rec) capStartRec();
+}
+function capPreload(){ if (cap.on && capEngine() === 'vosk') ensureVosk().catch(() => {}); }
+function loadScript(src){
+  return new Promise((res, rej) => {
+    const el = document.createElement('script'); el.src = src; el.async = true;
+    el.onload = res; el.onerror = () => rej(new Error('не загрузился модуль распознавания'));
+    document.head.append(el);
+  });
+}
+async function fetchWithProgress(url, onp){
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('сервер ответил ' + r.status);
+  const total = +r.headers.get('content-length') || MODEL.bytes;
+  if (!r.body || !r.body.getReader) return await r.blob();
+  const rd = r.body.getReader(), parts = []; let got = 0;
+  for (;;){
+    const {done, value} = await rd.read(); if (done) break;
+    parts.push(value); got += value.length; onp(Math.min(1, got / total));
+  }
+  return new Blob(parts, {type:'application/gzip'});
+}
+function ensureVosk(){
+  if (VOSK.model) return Promise.resolve(VOSK.model);
+  if (VOSK.loading) return VOSK.loading;
+  VOSK.loading = (async () => {
+    VOSK.state = 'loading'; VOSK.pct = 0; capUI();
+    if (!window.Vosk) await loadScript(ASSET('vosk/vosk.js'));
+    if (!window.Vosk) throw new Error('модуль распознавания не запустился');
+    const modelUrl = ASSET(MODEL.file);
+    let url = modelUrl + '#' + MODEL.key, blobUrl = null;
+    if (pref('voskOk') !== MODEL.key){
+      let shown = -1;
+      const blob = await fetchWithProgress(modelUrl, p => { const v = Math.floor(p * 100); if (v !== shown){ shown = v; VOSK.pct = p; capUI(); } });
+      blobUrl = URL.createObjectURL(blob); url = blobUrl + '#' + MODEL.key;
+    }
+    VOSK.state = 'unpack'; capUI();
+    const model = new window.Vosk.Model(url, -1);
+    await new Promise((res, rej) => {
+      const t = setTimeout(() => rej(new Error('распознавание слишком долго готовится')), 240000);
+      model.on('load', m => { clearTimeout(t); (m && m.result) ? res() : rej(new Error('модель речи не загрузилась')); });
+      model.on('error', m => { clearTimeout(t); rej(new Error((m && m.error) || 'ошибка модели речи')); });
+    });
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    pref('voskOk', MODEL.key);
+    VOSK.model = model; VOSK.state = 'ready'; capUI();
+    return model;
+  })().catch(e => {
+    VOSK.state = 'failed'; VOSK.loading = null; pref('voskOk', '');
+    cap.msg = 'Не удалось включить распознавание речи: ' + (e && e.message || 'ошибка') + '.' + (SR ? ' Пробуем распознавание браузера.' : ' Слова друга всё равно появятся.');
+    capUI(); capSync();
+    throw e;
+  });
+  return VOSK.loading;
+}
+function voskAttach(){
+  if (!VOSK.model || VOSK.rec || !S.localStream) return;
+  ensureAudioCtx(); if (!S.ac) return;
+  let rec;
+  try{ rec = new VOSK.model.KaldiRecognizer(S.ac.sampleRate); }catch(e){ return; }
+  /* длинную фразу режем на строки, как в субтитрах */
+  const flow = (text, fin) => {
+    const w = String(text || '').split(/\s+/).filter(Boolean);
+    while (w.length - VOSK.off > 14){ capEmit(w.slice(VOSK.off, VOSK.off + 10).join(' '), true); VOSK.off += 10; }
+    const rest = w.slice(VOSK.off).join(' ');
+    if (fin){ VOSK.off = 0; if (rest) capEmit(rest, true); else if (cap.pending) capEmit(cap.pending, true); }
+    else if (rest) capEmit(rest, false);
+  };
+  rec.on('partialresult', m => { if (VOSK.rec === rec && m && m.result) flow(m.result.partial, false); });
+  rec.on('result', m => { if (VOSK.rec === rec) flow(m && m.result && m.result.text, true); });
+  rec.on('error', () => {});
+  const src = S.ac.createMediaStreamSource(S.localStream);
+  const node = S.ac.createScriptProcessor(4096, 1, 1);
+  node.onaudioprocess = e => { if (VOSK.rec === rec && !S.muted){ try{ rec.acceptWaveform(e.inputBuffer); }catch(_){} } };
+  src.connect(node); node.connect(S.ac.destination);
+  VOSK.rec = rec; VOSK.src = src; VOSK.node = node; VOSK.off = 0;
+}
+function voskDetach(){
+  if (!VOSK.rec) return;
+  const {rec, src, node} = VOSK; VOSK.rec = VOSK.src = VOSK.node = null;
+  try{ node.onaudioprocess = null; node.disconnect(); src.disconnect(); }catch(e){}
+  try{ rec.remove(); }catch(e){}
+}
+function capStop(){
+  voskDetach();
+  if (cap.rec){ const r = cap.rec; cap.rec = null; try{ r.abort(); }catch(e){} }
+  cap.pending = '';
+  for (const L of capLines.values()) L.el.classList.add('fin');
+}
+function capStartRec(){
+  let rec;
+  try{ rec = new SR(); }catch(e){ capOff('Распознавание речи не запускается в этом браузере.'); return; }
+  cap.rec = rec; cap.done = 0; cap.t0 = Date.now(); cap.heard = false; cap.starts++;
+  rec.lang = 'ru-RU'; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+  rec.onresult = e => {
+    if (cap.rec !== rec) return;
+    cap.fails = 0; cap.quick = 0; cap.heard = true;
+    let interim = '';
+    for (let i = cap.done; i < e.results.length; i++){
+      const r = e.results[i], t = r[0] ? r[0].transcript : '';
+      if (r.isFinal && !interim){ capEmit(t, true); cap.done = i + 1; }
+      else interim += t;
+    }
+    if (interim.trim()) capEmit(interim, false);
+  };
+  rec.onerror = e => {
+    if (cap.rec !== rec) return;
+    const er = e.error;
+    if (er === 'not-allowed' || er === 'service-not-allowed') capOff('Браузер не разрешил распознавание речи. Ваши слова не появятся, слова друга видны.');
+    else if (er === 'audio-capture') capOff('Микрофон занят, распознавание речи выключено.');
+    else if (er === 'network' || er === 'language-not-supported'){ if (++cap.fails >= 3) capOff('Служба распознавания речи недоступна в этом браузере. Для своих субтитров откройте Рацию в Google Chrome.'); }
+  };
+  rec.onend = () => {
+    if (cap.rec !== rec) return;
+    cap.rec = null;
+    if (cap.pending) capEmit(cap.pending, true);
+    if (!cap.heard && Date.now() - cap.t0 < 1500){
+      if (++cap.quick >= 6){ capOff('Распознавание речи не работает в этом браузере. Для своих субтитров откройте Рацию в Google Chrome.'); return; }
+    } else cap.quick = 0;
+    if (capWanted()) setTimeout(capSync, cap.fails ? 1500 : 150 + cap.quick * 500);
+  };
+  const tr = S.localStream && S.localStream.getAudioTracks()[0];
+  try{ tr ? rec.start(tr) : rec.start(); }
+  catch(e){ try{ rec.start(); }catch(_){ if (cap.rec === rec) cap.rec = null; } }
+}
+function capOff(msg){ cap.on = false; capSync(); capUI(msg); }
+function capUI(msg){
+  if (msg !== undefined) cap.msg = msg;
+  const eng = capEngine(), b = $('btnCap');
+  b.hidden = !eng;
+  b.setAttribute('aria-pressed', String(cap.on));
+  b.textContent = cap.on ? 'Моя речь: вкл' : 'Моя речь: выкл';
+  let n = cap.msg || '', bar = null;
+  if (!n && cap.on && eng === 'vosk'){
+    if (VOSK.state === 'loading'){ n = 'Загружаем распознавание речи: ' + Math.round(VOSK.pct * 100) + '% из ' + MODEL.mb + ' МБ. Это один раз, дальше оно хранится в браузере и работает без интернета.'; bar = VOSK.pct; }
+    else if (VOSK.state === 'unpack'){ n = 'Готовим распознавание речи…'; bar = 'busy'; }
+  }
+  if (!n && !eng) n = 'Этот браузер не умеет переводить речь в текст. Ваши слова здесь не появятся, а слова друга появятся.';
+  $('capNote').textContent = n; $('capNote').hidden = !n;
+  $('capBar').hidden = bar === null;
+  $('capBar').classList.toggle('busy', bar === 'busy');
+  if (typeof bar === 'number') $('capBar').style.setProperty('--p', bar.toFixed(3));
+}
+
+/* ---------- прочее ---------- */
+async function grabWake(){
+  try{ if ('wakeLock' in navigator && document.visibilityState === 'visible') S.wake = await navigator.wakeLock.request('screen'); }catch(e){}
+}
+function releaseWake(){ try{ S.wake && S.wake.release(); }catch(e){} S.wake = null; }
+function wakeUpLinks(){
+  for (const c of RM.conns) if (c.kick) c.kick();
+  if (RM.active){ if (RM.joined) roomPing(); else roomHello(); }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  wakeUpLinks();
+  if (S.state === 'incall') grabWake();
+});
+window.addEventListener('online', wakeUpLinks);
+function isWeb(){ return /^https?:$/.test(location.protocol); }
+function inviteLink(){ return (isWeb() ? location.origin + location.pathname : HOME) + '#' + S.code; }
+function inviteText(){ return 'Заходи в Рацию, поговорим: ' + inviteLink() + ' (код канала ' + fmt(S.code) + ')'; }
+async function copyText(text, btn){
+  const old = btn.textContent;
+  let ok = false;
+  try{ await navigator.clipboard.writeText(text); ok = true; }
+  catch(e){
+    const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;left:-9999px;opacity:0'; document.body.append(ta); ta.select();
+    try{ ok = document.execCommand('copy'); }catch(_){}
+    ta.remove();
+  }
+  btn.textContent = ok ? 'Скопировано' : 'Выделите и скопируйте вручную';
+  setTimeout(() => { btn.textContent = old; }, 1800);
+}
+function shareInvite(btn){
+  if (navigator.share) navigator.share({title:'Рация', text:'Заходи в Рацию, поговорим (код канала ' + fmt(S.code) + ')', url:inviteLink()}).catch(() => {});
+  else copyText(inviteText(), btn);
+}
+
+$('btnCreate').onclick = roomCreate;
+$('btnJoin').onclick = roomJoin;
+$('inCode').addEventListener('input', e => {
+  const d = e.target.value.replace(/\D/g, '').slice(0, 6);
+  e.target.value = d.length > 3 ? d.slice(0,3) + ' ' + d.slice(3) : d;
+});
+$('inCode').addEventListener('keydown', e => { if (e.key === 'Enter') roomJoin(); });
+$('inName').value = pref('name');
+$('inName').addEventListener('change', e => { pref('name', e.target.value.trim().slice(0, 20)); roomPing(); });
+$('btnCancel').onclick = () => { if (S.mode === 'room') roomLeave('Вы вышли из канала'); else { stopAll(); toIdle(); } };
+$('btnHang').onclick = () => { if (S.mode === 'room') roomLeave('Вы вышли из канала'); else { stopAll(); toIdle('Связь завершена'); } };
+$('btnCopy').onclick = e => copyText(inviteText(), e.currentTarget);
+$('btnShare').onclick = e => shareInvite(e.currentTarget);
+$('btnInvite').onclick = e => shareInvite(e.currentTarget);
+$('btnMute').onclick = () => { S.muted = !S.muted; applyMute(); roomPing(); };
+$('btnSound').onclick = () => { for (const a of allAudioEls()) a.play().catch(() => {}); $('btnSound').hidden = true; ensureAudioCtx(); };
+$('vol').value = pref('vol') || 100;
+$('vol').oninput = e => { for (const a of allAudioEls()) a.volume = e.target.value / 100; pref('vol', e.target.value); };
+$('micSel').onchange = e => switchMic(e.target.value);
+$('btnDiag').onclick = () => { runDiag().catch(() => { $('btnDiag').disabled = false; }); };
+$('btnDiagCopy').onclick = e => S.diagText && copyText(S.diagText, e.currentTarget);
+$('btnCap').onclick = () => { cap.on = !cap.on; pref('cap2', cap.on ? '1' : '0'); cap.msg = ''; capUI(); capSync(); capPreload(); };
+$('mStartA').onclick = manualStartA;
+$('mStartB').onclick = manualStartB;
+$('mConnect').onclick = manualConnect;
+$('mMakeAnswer').onclick = manualMakeAnswer;
+$('mCopyOffer').onclick = e => $('mOffer').value && copyText($('mOffer').value, e.currentTarget);
+$('mCopyAnswer').onclick = e => $('mAnswer').value && copyText($('mAnswer').value, e.currentTarget);
+$('fRelay').checked = pref('forceRelay') === '1';
+$('fRelay').onchange = e => pref('forceRelay', e.target.checked ? '1' : '0');
+$('fHp').checked = pref('headphones') === '1';
+$('fHp').onchange = e => pref('headphones', e.target.checked ? '1' : '0');
+for (const [id, k] of [['tUrl','turnUrl'],['tUser','turnUser'],['tPass','turnPass'],['rUrl','relays']]){
+  $(id).value = pref(k); $(id).addEventListener('change', e => pref(k, e.target.value.trim()));
+}
+document.addEventListener('keydown', e => {
+  if (S.state !== 'incall' || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  if (e.key === 'm' || e.key === 'M' || e.key === 'ь' || e.key === 'Ь'){ S.muted = !S.muted; applyMute(); roomPing(); }
+});
+window.addEventListener('pagehide', () => { try{ roomBye(); endCall(); }catch(e){} });
+
+function readHash(){
+  const h = location.hash.replace(/\D/g, '');
+  if (h.length === 6 && S.state === 'idle'){
+    $('inCode').value = fmt(h);
+    setStatus('Вас пригласили в канал ' + fmt(h) + '. Нажмите «Подключиться».');
+    $('btnJoin').classList.add('primary');
+    try{ $('btnJoin').focus({preventScroll:true}); }catch(e){}
+  }
+}
+window.addEventListener('hashchange', readHash);
+
+/* ---------- новый дизайн: круги участников, свет комнаты, QR-код, шторка настроек ---------- */
+const NEO = { cv:null, ctx:null, w:0, h:0, frame:0, subT:0, slots:[0, 0, 0, 0], start:performance.now(),
+  rgb:[[110,240,197],[255,181,71],[92,200,255],[255,107,139]] };
+
+function show(view){
+  for (const v of ['vStart','vWait','vCall']) $(v).hidden = v !== view;
+  document.body.dataset.view = view === 'vStart' ? 'start' : view === 'vWait' ? 'wait' : 'call';
+}
+function setLed(s){
+  $('led').dataset.s = s;
+  $('ledTxt').textContent = {off:'не в эфире', wait:'ожидание', on:'в эфире', err:'сбой'}[s] || '';
+}
+function skin(what){
+  if (what === 'waiting') neoQR();
+  if (what === 'idle') neoHero();
+  neoMe();
+}
+function neoHero(){
+  const h = $('hero'); if (!h || h.dataset.done) return;
+  h.dataset.done = '1';
+  const words = [...h.childNodes];
+  let k = 0;
+  for (const n of words){
+    if (n.nodeType === 3){
+      const parts = n.textContent.split(/(\s+)/), frag = document.createDocumentFragment();
+      for (const p of parts){
+        if (!p) continue;
+        if (/^\s+$/.test(p)){ frag.append(p); continue; }
+        const s = document.createElement('span'); s.className = 'sw'; s.style.setProperty('--d', (k++ * 140) + 'ms'); s.textContent = p; frag.append(s);
+      }
+      n.replaceWith(frag);
+    } else if (n.nodeType === 1){
+      n.classList.add('swg'); n.style.setProperty('--d', (k++ * 140) + 'ms');
+    }
+  }
+}
+function neoQR(){
+  const box = $('qr'); if (!box) return;
+  box.textContent = '';
+  if (!window.qrcode || !S.code) return;
+  try{
+    const q = qrcode(0, 'M'); q.addData(inviteLink()); q.make();
+    box.innerHTML = q.createSvgTag({cellSize:4, margin:0, scalable:true});
+  }catch(e){}
+}
+function neoMe(){
+  const nm = myName();
+  $('meIni').textContent = (nm[0] || 'Я').toUpperCase();
+  $('meName').textContent = nm ? nm + ' · вы' : 'Вы';
+  $('meSub').textContent = S.muted ? 'микрофон выключен' : (S.state === 'waiting' ? 'проверьте микрофон: круг реагирует на голос' : '');
+  $('orbMe').classList.toggle('mute', !!S.muted);
+}
+/* круги остальных участников */
+function renderPeers(){
+  const box = $('mPeers'); box.textContent = '';
+  const list = S.mode === 'manual' && S.state === 'incall' ? [{pid:'manual', color:1, name:'Друг', manual:true}] : roomPeers();
+  for (const m of list){
+    const o = document.createElement('div'); o.className = 'orb p' + m.color; o.id = 'orb-' + m.pid;
+    const disc = document.createElement('div'); disc.className = 'disc';
+    const ring = document.createElement('i'); ring.className = 'ring';
+    const ini = document.createElement('span'); ini.className = 'ini';
+    const name = m.manual ? 'Друг' : peerName(m);
+    ini.textContent = (name.trim()[0] || '?').toUpperCase();
+    disc.append(ring, ini);
+    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = name;
+    const sub = document.createElement('div'); sub.className = 'sub';
+    o.append(disc, nm, sub); box.append(o);
+  }
+  document.body.dataset.n = String(1 + list.length);
+  neoMe(); neoSubs();
+}
+function neoSubs(){
+  for (const m of RM.members.values()){
+    const el = document.getElementById('orb-' + m.pid); if (!el) continue;
+    el.classList.toggle('mute', !!m.muted);
+    el.querySelector('.sub').textContent = m.muted ? 'микрофон выключен' : (m.up && m.up.selfUp && m.up.el ? 'напрямую' : 'через сервер');
+  }
+  const man = document.getElementById('orb-manual');
+  if (man) man.querySelector('.sub').textContent = 'напрямую';
+}
+/* уровни голоса: круги и свет комнаты */
+function meterLoop(){
+  const a = S.localMeter ? S.localMeter.read() : 0;
+  lv.me = a > lv.me ? a : lv.me * 0.86;
+  const meL = S.muted ? 0 : lv.me;
+  const me = $('orbMe'); me.style.setProperty('--l', meL.toFixed(3)); me.classList.toggle('talk', meL > 0.32);
+  const slots = [S.state === 'idle' ? -1 : meL, -2, -2, -2];
+  let fr = 0;
+  for (const m of RM.members.values()){
+    const r = m.up && m.up.el && m.up.meter ? m.up.meter.read() : m.player ? m.player.read() : 0;
+    m.lv = r > m.lv ? r : m.lv * 0.86;
+    const el = document.getElementById('orb-' + m.pid);
+    if (el){ el.style.setProperty('--l', m.lv.toFixed(3)); el.classList.toggle('talk', m.lv > 0.32); }
+    if (m.color >= 1 && m.color <= 3) slots[m.color] = m.lv;
+    fr = Math.max(fr, m.lv);
+  }
+  if (S.mode === 'manual'){
+    const r = S.remoteMeter ? S.remoteMeter.read() : 0;
+    lv.man = r > lv.man ? r : lv.man * 0.86;
+    const el = document.getElementById('orb-manual');
+    if (el){ el.style.setProperty('--l', lv.man.toFixed(3)); el.classList.toggle('talk', lv.man > 0.32); }
+    slots[1] = lv.man; fr = lv.man;
+  }
+  lv.friend = fr;
+  if (++NEO.subT % 30 === 0) neoSubs();
+  neoAura(slots);
+  requestAnimationFrame(meterLoop);
+}
+/* свет комнаты: мягкие пятна цветов участников по углам экрана, ярче у того, кто говорит */
+const NEO_SPOT = [[0.18, 0.88], [0.86, 0.12], [0.14, 0.16], [0.88, 0.82]];
+function neoAura(slots){
+  if (!NEO.cv){
+    NEO.cv = $('aura'); NEO.ctx = NEO.cv.getContext('2d');
+    const fit = () => { NEO.w = NEO.cv.width = Math.max(64, Math.round(innerWidth / 6)); NEO.h = NEO.cv.height = Math.max(64, Math.round(innerHeight / 6)); };
+    fit(); addEventListener('resize', fit);
+  }
+  if (++NEO.frame % 2) return;
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const t = still ? 0 : (performance.now() - NEO.start) / 1000;
+  const {ctx, w, h} = NEO;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#0B0C10'; ctx.fillRect(0, 0, w, h);
+  ctx.globalCompositeOperation = 'screen';
+  const idle = S.state === 'idle';
+  const R = Math.max(w, h) * 0.6;
+  for (let i = 0; i < 4; i++){
+    const v = slots[i];
+    let a;
+    if (idle) a = 0.22;
+    else if (v === -2) a = 0.025;
+    else a = 0.09 + Math.min(1, Math.max(0, v)) * 0.5;
+    NEO.slots[i] += (a - NEO.slots[i]) * (a > NEO.slots[i] ? 0.2 : 0.06);
+    const ph = i * 1.9;
+    const x = w * (NEO_SPOT[i][0] + 0.1 * Math.sin(t * 0.13 + ph));
+    const y = h * (NEO_SPOT[i][1] + 0.08 * Math.cos(t * 0.11 + ph));
+    const [r, g, b] = NEO.rgb[i];
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, R);
+    gr.addColorStop(0, `rgba(${r},${g},${b},${NEO.slots[i].toFixed(3)})`);
+    gr.addColorStop(0.55, `rgba(${r},${g},${b},${(NEO.slots[i] * 0.35).toFixed(3)})`);
+    gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, w, h);
+  }
+}
+/* шторка настроек */
+function neoSheet(open){
+  const sh = $('sheet');
+  sh.hidden = !open;
+  if (open){ try{ sh.querySelector('.sheet-panel').focus({preventScroll:true}); }catch(e){} }
+  else { try{ $('btnSettings').focus({preventScroll:true}); }catch(e){} }
+}
+$('btnSettings').onclick = () => neoSheet(true);
+for (const el of document.querySelectorAll('[data-close]')) el.addEventListener('click', () => neoSheet(false));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('sheet').hidden) neoSheet(false); });
+$('sheet').querySelector('.sheet-panel').tabIndex = -1;
+$('inName').addEventListener('input', neoMe);
+/* «Связь без сервера» запускается из шторки — закрываем её, когда разговор начался */
+for (const id of ['mConnect','mMakeAnswer']) $(id).addEventListener('click', () => setTimeout(() => { if (S.state === 'incall') neoSheet(false); }, 1500));
+
+/* приглашение по ссылке: подпись под кнопку этого дизайна */
+function readHash(){
+  const h = location.hash.replace(/\D/g, '');
+  if (h.length === 6 && S.state === 'idle'){
+    $('inCode').value = fmt(h);
+    setStatus('Вас пригласили в канал ' + fmt(h) + '. Нажмите «Войти».');
+    $('btnJoin').classList.add('primary');
+    try{ $('btnJoin').focus({preventScroll:true}); }catch(e){}
+  }
+}
+neoHero(); neoMe();
+
+(function init(){
+  cap.on = capEngine() ? (pref('cap2') ? pref('cap2') === '1' : true) : false;
+  capUI(); capDemo();
+  if (!isWeb()){
+    const f = $('fine'); f.textContent = 'Онлайн-версия, которую можно открыть с телефона: ';
+    const a = document.createElement('a'); a.href = HOME; a.textContent = HOME.replace(/^https:\/\//, '').replace(/\/$/, ''); a.target = '_blank'; a.rel = 'noopener';
+    f.append(a);
+  }
+  if (!window.RTCPeerConnection && !relayCanRun()){ toIdle('Этот браузер не поддерживает голосовую связь. Откройте программу в Chrome, Яндекс Браузере, Edge или Firefox.', 'err'); return; }
+  $('fine').append(' Версия ' + VERSION + '.');
+  setChan('— — —'); setStatus('Создайте канал или введите код друга');
+  readHash();
+  requestAnimationFrame(meterLoop);
+})();
+
+</script>
+</body>
+</html>
