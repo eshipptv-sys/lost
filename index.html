@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Рация</title>
-<meta name="description" content="Голосовая связь на двоих прямо в браузере. Открой ссылку и нажми «Подключиться».">
+<meta name="description" content="Голосовая связь до 4 человек прямо в браузере. Открой ссылку и нажми «Подключиться».">
 <meta property="og:title" content="Рация">
-<meta property="og:description" content="Голосовая связь на двоих прямо в браузере. Открой ссылку и нажми «Подключиться».">
+<meta property="og:description" content="Голосовая связь до 4 человек прямо в браузере. Открой ссылку и нажми «Подключиться».">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,6 +26,8 @@
   --stage:#0A0E0C; --stage-edge:#1F2722; --stage-dim:#66746B;
   --me-hot:#F2FFF8; --me-glow:#37E39B; --me-rest:#B4EED3; --me-soft:rgba(55,227,155,.28);
   --fr-hot:#FFF6E2; --fr-glow:#FF9B2F; --fr-rest:#F7C987; --fr-soft:rgba(255,155,47,.30);
+  --p2-hot:#EEFBFF; --p2-glow:#3FB8FF; --p2-rest:#A9DDF7; --p2-soft:rgba(63,184,255,.28);
+  --p3-hot:#FFEFF6; --p3-glow:#FF5FA2; --p3-rest:#F7B3CF; --p3-soft:rgba(255,95,162,.28);
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -187,24 +189,36 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
 .capbar.busy i{width:35%;animation:scan 1.3s ease-in-out infinite alternate}
 @keyframes scan{from{transform:translateX(-10%)}to{transform:translateX(200%)}}
 .stage-note{margin:0;font-size:12px;line-height:1.45;color:var(--stage-dim)}
+/* канал до 4 человек */
+#mPeers{display:contents}
+.meter{grid-template-columns:5.6em 1fr}
+.meter>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#cnt{margin-left:.7em;opacity:.75}
+#cnt:empty{display:none}
+.cl{grid-template-columns:4.8em minmax(0,1fr)}
+.cl .who{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cl.friend.c2{--hot:var(--p2-hot);--glow:var(--p2-glow);--rest:var(--p2-rest);--soft:var(--p2-soft)}
+.cl.friend.c3{--hot:var(--p3-hot);--glow:var(--p3-glow);--rest:var(--p3-rest);--soft:var(--p3-soft)}
+.namefield{width:100%;min-width:0;font:16px/1.3 var(--f-ui);padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.namefield:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
 <main class="device">
   <header class="top">
-    <div class="brand">РАЦИЯ<small>голосовая связь на двоих</small></div>
+    <div class="brand">РАЦИЯ<small>голосовая связь до 4 человек</small></div>
     <div class="ledbox"><span id="ledTxt">ВЫКЛ</span><span class="led" id="led" data-s="off"></span></div>
   </header>
   <div class="grille" aria-hidden="true"></div>
 
   <section class="screen" aria-live="polite">
-    <div class="srow"><span>Канал</span><span><span class="tag" id="micTag" hidden>Микр выкл</span> <span class="sig" id="sig" data-n="0" title="Качество связи"><b></b><b></b><b></b><b></b></span></span></div>
+    <div class="srow"><span>Канал<span id="cnt"></span></span><span><span class="tag" id="micTag" hidden>Микр выкл</span> <span class="sig" id="sig" data-n="0" title="Качество связи"><b></b><b></b><b></b><b></b></span></span></div>
     <div class="chan" id="chan">— — —</div>
     <div class="status" id="status">Создайте канал или введите код друга</div>
     <div class="meters">
       <div class="meter"><span>ВЫ</span><i id="mMe"></i></div>
-      <div class="meter"><span>ДРУГ</span><i id="mFriend"></i></div>
+      <div id="mPeers"></div>
     </div>
     <div class="srow foot"><span id="timer">00:00</span><span id="route"></span></div>
   </section>
@@ -221,6 +235,8 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
   </section>
 
   <section class="view" id="vStart">
+    <label class="lab" for="inName">Ваше имя — его увидят остальные в канале</label>
+    <input id="inName" class="namefield" maxlength="20" autocomplete="nickname" placeholder="Например, Виктор">
     <button class="btn primary" id="btnCreate">Создать канал</button>
     <div class="or">или</div>
     <label class="lab" for="inCode">Код канала от друга</label>
@@ -248,9 +264,10 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
         <span id="muteLbl">Микрофон включён</span>
       </button>
     </div>
-    <label class="vol" for="vol"><span>Громкость друга</span><input type="range" id="vol" min="0" max="100" value="100"></label>
+    <label class="vol" for="vol"><span>Громкость собеседников</span><input type="range" id="vol" min="0" max="100" value="100"></label>
     <button class="btn" id="btnSound" hidden>Включить звук друга</button>
-    <button class="btn danger" id="btnHang">Завершить связь</button>
+    <button class="btn" id="btnInvite" hidden>Пригласить ещё</button>
+    <button class="btn danger" id="btnHang">Выйти из канала</button>
   </section>
 
   <details class="fold" id="manual">
@@ -302,39 +319,28 @@ select,.field input{font-family:var(--f-ui);font-size:14px}
         <span>Я в наушниках. Задержка станет меньше, но без наушников будет эхо. Применяется к следующему разговору.</span></label>
       <label class="field" for="rUrl">Серверы-ретрансляторы голоса (MQTT по WebSocket, через запятую). Пустое поле — общие серверы.
         <input id="rUrl" placeholder="wss://broker.emqx.io:8084/mqtt" autocomplete="off"></label>
-      <p class="note">Свой TURN-сервер нужен, только если связь не устанавливается ни по коду, ни без сервера (строгий NAT, мобильный интернет). Укажите одинаково у обоих.</p>
+      <p class="note">Свой TURN-сервер помогает открыть прямой канал там, где он сам не открывается (строгий NAT, мобильный интернет). Укажите одинаково у всех.</p>
       <label class="field" for="tUrl">Адрес TURN<input id="tUrl" placeholder="turn:203.0.113.10:3478" autocomplete="off"></label>
       <div class="row2">
         <label class="field" for="tUser" style="flex:1 1 140px">Логин<input id="tUser" autocomplete="off"></label>
         <label class="field" for="tPass" style="flex:1 1 140px">Пароль<input id="tPass" type="password" autocomplete="off"></label>
       </div>
-      <p class="note">Свой сервер соединения (PeerServer) — если общий сервер недоступен. Пустое поле — общий сервер. Укажите одинаково у обоих.</p>
-      <label class="field" for="sUrl">Адрес сервера соединения<input id="sUrl" placeholder="https://example.ru:9000/" autocomplete="off"></label>
     </div>
   </details>
 
-  <p class="fine" id="fine">Голос идёт напрямую между вами. Если сеть этого не пропускает, программа сама переключится на связь через сервер, голос при этом шифруется.</p>
+  <p class="fine" id="fine">В канале до 4 человек. Голос шифруется и идёт напрямую между вами, а где сеть этого не пропускает — через серверы-ретрансляторы.</p>
   <audio id="remote" autoplay playsinline></audio>
 </main>
 
-<script>/* PeerJS 1.5.5, MIT License, https://peerjs.com */
-(()=>{function e(e,t,n,r){Object.defineProperty(e,t,{get:n,set:r,enumerable:!0,configurable:!0})}function t(e){return e&&e.__esModule?e.default:e}class n{constructor(){this.chunkedMTU=16300,this._dataCount=1,this.chunk=e=>{let t=[],n=e.byteLength,r=Math.ceil(n/this.chunkedMTU),i=0,s=0;for(;s<n;){let o=Math.min(n,s+this.chunkedMTU),a=e.slice(s,o),c={__peerData:this._dataCount,n:i,data:a,total:r};t.push(c),s=o,i++}return this._dataCount++,t}}}class r{append_buffer(e){this.flush(),this._parts.push(e)}append(e){this._pieces.push(e)}flush(){if(this._pieces.length>0){let e=new Uint8Array(this._pieces);this._parts.push(e),this._pieces=[]}}toArrayBuffer(){let e=[];for(let t of this._parts)e.push(t);return function(e){let t=0;for(let n of e)t+=n.byteLength;let n=new Uint8Array(t),r=0;for(let t of e){let e=new Uint8Array(t.buffer,t.byteOffset,t.byteLength);n.set(e,r),r+=t.byteLength}return n}(e).buffer}constructor(){this.encoder=new TextEncoder,this._pieces=[],this._parts=[]}}function i(e){return new o(e).unpack()}function s(e){let t=new a,n=t.pack(e);return n instanceof Promise?n.then(()=>t.getBuffer()):t.getBuffer()}class o{unpack(){let e,t=this.unpack_uint8();if(t<128)return t;if((224^t)<32)return(224^t)-32;if((e=160^t)<=15)return this.unpack_raw(e);if((e=176^t)<=15)return this.unpack_string(e);if((e=144^t)<=15)return this.unpack_array(e);if((e=128^t)<=15)return this.unpack_map(e);switch(t){case 192:return null;case 193:case 212:case 213:case 214:case 215:return;case 194:return!1;case 195:return!0;case 202:return this.unpack_float();case 203:return this.unpack_double();case 204:return this.unpack_uint8();case 205:return this.unpack_uint16();case 206:return this.unpack_uint32();case 207:return this.unpack_uint64();case 208:return this.unpack_int8();case 209:return this.unpack_int16();case 210:return this.unpack_int32();case 211:return this.unpack_int64();case 216:return e=this.unpack_uint16(),this.unpack_string(e);case 217:return e=this.unpack_uint32(),this.unpack_string(e);case 218:return e=this.unpack_uint16(),this.unpack_raw(e);case 219:return e=this.unpack_uint32(),this.unpack_raw(e);case 220:return e=this.unpack_uint16(),this.unpack_array(e);case 221:return e=this.unpack_uint32(),this.unpack_array(e);case 222:return e=this.unpack_uint16(),this.unpack_map(e);case 223:return e=this.unpack_uint32(),this.unpack_map(e)}}unpack_uint8(){let e=255&this.dataView[this.index];return this.index++,e}unpack_uint16(){let e=this.read(2),t=(255&e[0])*256+(255&e[1]);return this.index+=2,t}unpack_uint32(){let e=this.read(4),t=((256*e[0]+e[1])*256+e[2])*256+e[3];return this.index+=4,t}unpack_uint64(){let e=this.read(8),t=((((((256*e[0]+e[1])*256+e[2])*256+e[3])*256+e[4])*256+e[5])*256+e[6])*256+e[7];return this.index+=8,t}unpack_int8(){let e=this.unpack_uint8();return e<128?e:e-256}unpack_int16(){let e=this.unpack_uint16();return e<32768?e:e-65536}unpack_int32(){let e=this.unpack_uint32();return e<0x80000000?e:e-0x100000000}unpack_int64(){let e=this.unpack_uint64();return e<0x8000000000000000?e:e-0xffffffffffffffff}unpack_raw(e){if(this.length<this.index+e)throw Error(`BinaryPackFailure: index is out of range ${this.index} ${e} ${this.length}`);let t=this.dataBuffer.slice(this.index,this.index+e);return this.index+=e,t}unpack_string(e){let t,n,r=this.read(e),i=0,s="";for(;i<e;)(t=r[i])<160?(n=t,i++):(192^t)<32?(n=(31&t)<<6|63&r[i+1],i+=2):(224^t)<16?(n=(15&t)<<12|(63&r[i+1])<<6|63&r[i+2],i+=3):(n=(7&t)<<18|(63&r[i+1])<<12|(63&r[i+2])<<6|63&r[i+3],i+=4),s+=String.fromCodePoint(n);return this.index+=e,s}unpack_array(e){let t=Array(e);for(let n=0;n<e;n++)t[n]=this.unpack();return t}unpack_map(e){let t={};for(let n=0;n<e;n++)t[this.unpack()]=this.unpack();return t}unpack_float(){let e=this.unpack_uint32();return(0==e>>31?1:-1)*(8388607&e|8388608)*2**((e>>23&255)-127-23)}unpack_double(){let e=this.unpack_uint32(),t=this.unpack_uint32(),n=(e>>20&2047)-1023;return(0==e>>31?1:-1)*((1048575&e|1048576)*2**(n-20)+t*2**(n-52))}read(e){let t=this.index;if(t+e<=this.length)return this.dataView.subarray(t,t+e);throw Error("BinaryPackFailure: read index out of range")}constructor(e){this.index=0,this.dataBuffer=e,this.dataView=new Uint8Array(this.dataBuffer),this.length=this.dataBuffer.byteLength}}class a{getBuffer(){return this._bufferBuilder.toArrayBuffer()}pack(e){if("string"==typeof e)this.pack_string(e);else if("number"==typeof e)Math.floor(e)===e?this.pack_integer(e):this.pack_double(e);else if("boolean"==typeof e)!0===e?this._bufferBuilder.append(195):!1===e&&this._bufferBuilder.append(194);else if(void 0===e)this._bufferBuilder.append(192);else if("object"==typeof e)if(null===e)this._bufferBuilder.append(192);else{let t=e.constructor;if(e instanceof Array){let t=this.pack_array(e);if(t instanceof Promise)return t.then(()=>this._bufferBuilder.flush())}else if(e instanceof ArrayBuffer)this.pack_bin(new Uint8Array(e));else if("BYTES_PER_ELEMENT"in e)this.pack_bin(new Uint8Array(e.buffer,e.byteOffset,e.byteLength));else if(e instanceof Date)this.pack_string(e.toString());else if(e instanceof Blob)return e.arrayBuffer().then(e=>{this.pack_bin(new Uint8Array(e)),this._bufferBuilder.flush()});else if(t==Object||t.toString().startsWith("class")){let t=this.pack_object(e);if(t instanceof Promise)return t.then(()=>this._bufferBuilder.flush())}else throw Error(`Type "${t.toString()}" not yet supported`)}else throw Error(`Type "${typeof e}" not yet supported`);this._bufferBuilder.flush()}pack_bin(e){let t=e.length;if(t<=15)this.pack_uint8(160+t);else if(t<=65535)this._bufferBuilder.append(218),this.pack_uint16(t);else if(t<=0xffffffff)this._bufferBuilder.append(219),this.pack_uint32(t);else throw Error("Invalid length");this._bufferBuilder.append_buffer(e)}pack_string(e){let t=this._textEncoder.encode(e),n=t.length;if(n<=15)this.pack_uint8(176+n);else if(n<=65535)this._bufferBuilder.append(216),this.pack_uint16(n);else if(n<=0xffffffff)this._bufferBuilder.append(217),this.pack_uint32(n);else throw Error("Invalid length");this._bufferBuilder.append_buffer(t)}pack_array(e){let t=e.length;if(t<=15)this.pack_uint8(144+t);else if(t<=65535)this._bufferBuilder.append(220),this.pack_uint16(t);else if(t<=0xffffffff)this._bufferBuilder.append(221),this.pack_uint32(t);else throw Error("Invalid length");let n=r=>{if(r<t){let t=this.pack(e[r]);return t instanceof Promise?t.then(()=>n(r+1)):n(r+1)}};return n(0)}pack_integer(e){if(e>=-32&&e<=127)this._bufferBuilder.append(255&e);else if(e>=0&&e<=255)this._bufferBuilder.append(204),this.pack_uint8(e);else if(e>=-128&&e<=127)this._bufferBuilder.append(208),this.pack_int8(e);else if(e>=0&&e<=65535)this._bufferBuilder.append(205),this.pack_uint16(e);else if(e>=-32768&&e<=32767)this._bufferBuilder.append(209),this.pack_int16(e);else if(e>=0&&e<=0xffffffff)this._bufferBuilder.append(206),this.pack_uint32(e);else if(e>=-0x80000000&&e<=0x7fffffff)this._bufferBuilder.append(210),this.pack_int32(e);else if(e>=-0x8000000000000000&&e<=0x8000000000000000)this._bufferBuilder.append(211),this.pack_int64(e);else if(e>=0&&e<=0xffffffffffffffff)this._bufferBuilder.append(207),this.pack_uint64(e);else throw Error("Invalid integer")}pack_double(e){let t=0;e<0&&(t=1,e=-e);let n=Math.floor(Math.log(e)/Math.LN2),r=Math.floor((e/2**n-1)*0x10000000000000),i=t<<31|n+1023<<20|r/0x100000000&1048575;this._bufferBuilder.append(203),this.pack_int32(i),this.pack_int32(r%0x100000000)}pack_object(e){let t=Object.keys(e),n=t.length;if(n<=15)this.pack_uint8(128+n);else if(n<=65535)this._bufferBuilder.append(222),this.pack_uint16(n);else if(n<=0xffffffff)this._bufferBuilder.append(223),this.pack_uint32(n);else throw Error("Invalid length");let r=n=>{if(n<t.length){let i=t[n];if(e.hasOwnProperty(i)){this.pack(i);let t=this.pack(e[i]);if(t instanceof Promise)return t.then(()=>r(n+1))}return r(n+1)}};return r(0)}pack_uint8(e){this._bufferBuilder.append(e)}pack_uint16(e){this._bufferBuilder.append(e>>8),this._bufferBuilder.append(255&e)}pack_uint32(e){let t=0|e;this._bufferBuilder.append((0xff000000&t)>>>24),this._bufferBuilder.append((0xff0000&t)>>>16),this._bufferBuilder.append((65280&t)>>>8),this._bufferBuilder.append(255&t)}pack_uint64(e){let t=e/0x100000000,n=e%0x100000000;this._bufferBuilder.append((0xff000000&t)>>>24),this._bufferBuilder.append((0xff0000&t)>>>16),this._bufferBuilder.append((65280&t)>>>8),this._bufferBuilder.append(255&t),this._bufferBuilder.append((0xff000000&n)>>>24),this._bufferBuilder.append((0xff0000&n)>>>16),this._bufferBuilder.append((65280&n)>>>8),this._bufferBuilder.append(255&n)}pack_int8(e){this._bufferBuilder.append(255&e)}pack_int16(e){this._bufferBuilder.append((65280&e)>>8),this._bufferBuilder.append(255&e)}pack_int32(e){this._bufferBuilder.append(e>>>24&255),this._bufferBuilder.append((0xff0000&e)>>>16),this._bufferBuilder.append((65280&e)>>>8),this._bufferBuilder.append(255&e)}pack_int64(e){let t=Math.floor(e/0x100000000),n=e%0x100000000;this._bufferBuilder.append((0xff000000&t)>>>24),this._bufferBuilder.append((0xff0000&t)>>>16),this._bufferBuilder.append((65280&t)>>>8),this._bufferBuilder.append(255&t),this._bufferBuilder.append((0xff000000&n)>>>24),this._bufferBuilder.append((0xff0000&n)>>>16),this._bufferBuilder.append((65280&n)>>>8),this._bufferBuilder.append(255&n)}constructor(){this._bufferBuilder=new r,this._textEncoder=new TextEncoder}}"use strict";let c=!0,p=!0;function d(e,t,n){let r=e.match(t);return r&&r.length>=n&&parseInt(r[n],10)}function l(e,t,n){if(!e.RTCPeerConnection)return;let r=e.RTCPeerConnection.prototype,i=r.addEventListener;r.addEventListener=function(e,r){if(e!==t)return i.apply(this,arguments);let s=e=>{let t=n(e);t&&(r.handleEvent?r.handleEvent(t):r(t))};return this._eventMap=this._eventMap||{},this._eventMap[t]||(this._eventMap[t]=new Map),this._eventMap[t].set(r,s),i.apply(this,[e,s])};let s=r.removeEventListener;r.removeEventListener=function(e,n){if(e!==t||!this._eventMap||!this._eventMap[t]||!this._eventMap[t].has(n))return s.apply(this,arguments);let r=this._eventMap[t].get(n);return this._eventMap[t].delete(n),0===this._eventMap[t].size&&delete this._eventMap[t],0===Object.keys(this._eventMap).length&&delete this._eventMap,s.apply(this,[e,r])},Object.defineProperty(r,"on"+t,{get(){return this["_on"+t]},set(e){this["_on"+t]&&(this.removeEventListener(t,this["_on"+t]),delete this["_on"+t]),e&&this.addEventListener(t,this["_on"+t]=e)},enumerable:!0,configurable:!0})}function h(e){return"boolean"!=typeof e?Error("Argument type: "+typeof e+". Please use a boolean."):(c=e,e?"adapter.js logging disabled":"adapter.js logging enabled")}function u(e){return"boolean"!=typeof e?Error("Argument type: "+typeof e+". Please use a boolean."):(p=!e,"adapter.js deprecation warnings "+(e?"disabled":"enabled"))}function f(){"object"==typeof window&&(c||"undefined"!=typeof console&&"function"==typeof console.log&&console.log.apply(console,arguments))}function m(e,t){p&&console.warn(e+" is deprecated, please use "+t+" instead.")}function _(e){return"[object Object]"===Object.prototype.toString.call(e)}function g(e,t,n){let r=n?"outbound-rtp":"inbound-rtp",i=new Map;if(null===t)return i;let s=[];return e.forEach(e=>{"track"===e.type&&e.trackIdentifier===t.id&&s.push(e)}),s.forEach(t=>{e.forEach(n=>{n.type===r&&n.trackId===t.id&&function e(t,n,r){!n||r.has(n.id)||(r.set(n.id,n),Object.keys(n).forEach(i=>{i.endsWith("Id")?e(t,t.get(n[i]),r):i.endsWith("Ids")&&n[i].forEach(n=>{e(t,t.get(n),r)})}))}(e,n,i)})}),i}"use strict";var y={};function C(e,t){let n=e&&e.navigator;if(!n.mediaDevices)return;let r=function(e){if("object"!=typeof e||e.mandatory||e.optional)return e;let t={};return Object.keys(e).forEach(n=>{if("require"===n||"advanced"===n||"mediaSource"===n)return;let r="object"==typeof e[n]?e[n]:{ideal:e[n]};void 0!==r.exact&&"number"==typeof r.exact&&(r.min=r.max=r.exact);let i=function(e,t){return e?e+t.charAt(0).toUpperCase()+t.slice(1):"deviceId"===t?"sourceId":t};if(void 0!==r.ideal){t.optional=t.optional||[];let e={};"number"==typeof r.ideal?(e[i("min",n)]=r.ideal,t.optional.push(e),(e={})[i("max",n)]=r.ideal):e[i("",n)]=r.ideal,t.optional.push(e)}void 0!==r.exact&&"number"!=typeof r.exact?(t.mandatory=t.mandatory||{},t.mandatory[i("",n)]=r.exact):["min","max"].forEach(e=>{void 0!==r[e]&&(t.mandatory=t.mandatory||{},t.mandatory[i(e,n)]=r[e])})}),e.advanced&&(t.optional=(t.optional||[]).concat(e.advanced)),t},i=function(e,i){if(t.version>=61)return i(e);if((e=JSON.parse(JSON.stringify(e)))&&"object"==typeof e.audio){let t=function(e,t,n){t in e&&!(n in e)&&(e[n]=e[t],delete e[t])};t((e=JSON.parse(JSON.stringify(e))).audio,"autoGainControl","googAutoGainControl"),t(e.audio,"noiseSuppression","googNoiseSuppression"),e.audio=r(e.audio)}if(e&&"object"==typeof e.video){let s=e.video.facingMode;s=s&&("object"==typeof s?s:{ideal:s});let o=t.version<66;if(s&&("user"===s.exact||"environment"===s.exact||"user"===s.ideal||"environment"===s.ideal)&&!(n.mediaDevices.getSupportedConstraints&&n.mediaDevices.getSupportedConstraints().facingMode&&!o)){let t;if(delete e.video.facingMode,"environment"===s.exact||"environment"===s.ideal?t=["back","rear"]:("user"===s.exact||"user"===s.ideal)&&(t=["front"]),t)return n.mediaDevices.enumerateDevices().then(n=>{let o=(n=n.filter(e=>"videoinput"===e.kind)).find(e=>t.some(t=>e.label.toLowerCase().includes(t)));return!o&&n.length&&t.includes("back")&&(o=n[n.length-1]),o&&(e.video.deviceId=s.exact?{exact:o.deviceId}:{ideal:o.deviceId}),e.video=r(e.video),f("chrome: "+JSON.stringify(e)),i(e)})}e.video=r(e.video)}return f("chrome: "+JSON.stringify(e)),i(e)},s=function(e){return t.version>=64?e:{name:({PermissionDeniedError:"NotAllowedError",PermissionDismissedError:"NotAllowedError",InvalidStateError:"NotAllowedError",DevicesNotFoundError:"NotFoundError",ConstraintNotSatisfiedError:"OverconstrainedError",TrackStartError:"NotReadableError",MediaDeviceFailedDueToShutdown:"NotAllowedError",MediaDeviceKillSwitchOn:"NotAllowedError",TabCaptureError:"AbortError",ScreenCaptureError:"AbortError",DeviceCaptureError:"AbortError"})[e.name]||e.name,message:e.message,constraint:e.constraint||e.constraintName,toString(){return this.name+(this.message&&": ")+this.message}}};if(n.getUserMedia=(function(e,t,r){i(e,e=>{n.webkitGetUserMedia(e,t,e=>{r&&r(s(e))})})}).bind(n),n.mediaDevices.getUserMedia){let e=n.mediaDevices.getUserMedia.bind(n.mediaDevices);n.mediaDevices.getUserMedia=function(t){return i(t,t=>e(t).then(e=>{if(t.audio&&!e.getAudioTracks().length||t.video&&!e.getVideoTracks().length)throw e.getTracks().forEach(e=>{e.stop()}),new DOMException("","NotFoundError");return e},e=>Promise.reject(s(e))))}}}"use strict";function v(e){e.MediaStream=e.MediaStream||e.webkitMediaStream}function b(e){if("object"!=typeof e||!e.RTCPeerConnection||"ontrack"in e.RTCPeerConnection.prototype)l(e,"track",e=>(e.transceiver||Object.defineProperty(e,"transceiver",{value:{receiver:e.receiver}}),e));else{Object.defineProperty(e.RTCPeerConnection.prototype,"ontrack",{get(){return this._ontrack},set(e){this._ontrack&&this.removeEventListener("track",this._ontrack),this.addEventListener("track",this._ontrack=e)},enumerable:!0,configurable:!0});let t=e.RTCPeerConnection.prototype.setRemoteDescription;e.RTCPeerConnection.prototype.setRemoteDescription=function(){return this._ontrackpoly||(this._ontrackpoly=t=>{t.stream.addEventListener("addtrack",n=>{let r;r=e.RTCPeerConnection.prototype.getReceivers?this.getReceivers().find(e=>e.track&&e.track.id===n.track.id):{track:n.track};let i=new Event("track");i.track=n.track,i.receiver=r,i.transceiver={receiver:r},i.streams=[t.stream],this.dispatchEvent(i)}),t.stream.getTracks().forEach(n=>{let r;r=e.RTCPeerConnection.prototype.getReceivers?this.getReceivers().find(e=>e.track&&e.track.id===n.id):{track:n};let i=new Event("track");i.track=n,i.receiver=r,i.transceiver={receiver:r},i.streams=[t.stream],this.dispatchEvent(i)})},this.addEventListener("addstream",this._ontrackpoly)),t.apply(this,arguments)}}}function T(e){if("object"==typeof e&&e.RTCPeerConnection&&!("getSenders"in e.RTCPeerConnection.prototype)&&"createDTMFSender"in e.RTCPeerConnection.prototype){let t=function(e,t){return{track:t,get dtmf(){return void 0===this._dtmf&&("audio"===t.kind?this._dtmf=e.createDTMFSender(t):this._dtmf=null),this._dtmf},_pc:e}};if(!e.RTCPeerConnection.prototype.getSenders){e.RTCPeerConnection.prototype.getSenders=function(){return this._senders=this._senders||[],this._senders.slice()};let n=e.RTCPeerConnection.prototype.addTrack;e.RTCPeerConnection.prototype.addTrack=function(e,r){let i=n.apply(this,arguments);return i||(i=t(this,e),this._senders.push(i)),i};let r=e.RTCPeerConnection.prototype.removeTrack;e.RTCPeerConnection.prototype.removeTrack=function(e){r.apply(this,arguments);let t=this._senders.indexOf(e);-1!==t&&this._senders.splice(t,1)}}let n=e.RTCPeerConnection.prototype.addStream;e.RTCPeerConnection.prototype.addStream=function(e){this._senders=this._senders||[],n.apply(this,[e]),e.getTracks().forEach(e=>{this._senders.push(t(this,e))})};let r=e.RTCPeerConnection.prototype.removeStream;e.RTCPeerConnection.prototype.removeStream=function(e){this._senders=this._senders||[],r.apply(this,[e]),e.getTracks().forEach(e=>{let t=this._senders.find(t=>t.track===e);t&&this._senders.splice(this._senders.indexOf(t),1)})}}else if("object"==typeof e&&e.RTCPeerConnection&&"getSenders"in e.RTCPeerConnection.prototype&&"createDTMFSender"in e.RTCPeerConnection.prototype&&e.RTCRtpSender&&!("dtmf"in e.RTCRtpSender.prototype)){let t=e.RTCPeerConnection.prototype.getSenders;e.RTCPeerConnection.prototype.getSenders=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e},Object.defineProperty(e.RTCRtpSender.prototype,"dtmf",{get(){return void 0===this._dtmf&&("audio"===this.track.kind?this._dtmf=this._pc.createDTMFSender(this.track):this._dtmf=null),this._dtmf}})}}function S(e){if(!("object"==typeof e&&e.RTCPeerConnection&&e.RTCRtpSender&&e.RTCRtpReceiver))return;if(!("getStats"in e.RTCRtpSender.prototype)){let t=e.RTCPeerConnection.prototype.getSenders;t&&(e.RTCPeerConnection.prototype.getSenders=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e});let n=e.RTCPeerConnection.prototype.addTrack;n&&(e.RTCPeerConnection.prototype.addTrack=function(){let e=n.apply(this,arguments);return e._pc=this,e}),e.RTCRtpSender.prototype.getStats=function(){let e=this;return this._pc.getStats().then(t=>g(t,e.track,!0))}}if(!("getStats"in e.RTCRtpReceiver.prototype)){let t=e.RTCPeerConnection.prototype.getReceivers;t&&(e.RTCPeerConnection.prototype.getReceivers=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e}),l(e,"track",e=>(e.receiver._pc=e.srcElement,e)),e.RTCRtpReceiver.prototype.getStats=function(){let e=this;return this._pc.getStats().then(t=>g(t,e.track,!1))}}if(!("getStats"in e.RTCRtpSender.prototype&&"getStats"in e.RTCRtpReceiver.prototype))return;let t=e.RTCPeerConnection.prototype.getStats;e.RTCPeerConnection.prototype.getStats=function(){if(arguments.length>0&&arguments[0]instanceof e.MediaStreamTrack){let e,t,n,r=arguments[0];return(this.getSenders().forEach(t=>{t.track===r&&(e?n=!0:e=t)}),this.getReceivers().forEach(e=>(e.track===r&&(t?n=!0:t=e),e.track===r)),n||e&&t)?Promise.reject(new DOMException("There are more than one sender or receiver for the track.","InvalidAccessError")):e?e.getStats():t?t.getStats():Promise.reject(new DOMException("There is no sender or receiver for the track.","InvalidAccessError"))}return t.apply(this,arguments)}}function k(e){e.RTCPeerConnection.prototype.getLocalStreams=function(){return this._shimmedLocalStreams=this._shimmedLocalStreams||{},Object.keys(this._shimmedLocalStreams).map(e=>this._shimmedLocalStreams[e][0])};let t=e.RTCPeerConnection.prototype.addTrack;e.RTCPeerConnection.prototype.addTrack=function(e,n){if(!n)return t.apply(this,arguments);this._shimmedLocalStreams=this._shimmedLocalStreams||{};let r=t.apply(this,arguments);return this._shimmedLocalStreams[n.id]?-1===this._shimmedLocalStreams[n.id].indexOf(r)&&this._shimmedLocalStreams[n.id].push(r):this._shimmedLocalStreams[n.id]=[n,r],r};let n=e.RTCPeerConnection.prototype.addStream;e.RTCPeerConnection.prototype.addStream=function(e){this._shimmedLocalStreams=this._shimmedLocalStreams||{},e.getTracks().forEach(e=>{if(this.getSenders().find(t=>t.track===e))throw new DOMException("Track already exists.","InvalidAccessError")});let t=this.getSenders();n.apply(this,arguments);let r=this.getSenders().filter(e=>-1===t.indexOf(e));this._shimmedLocalStreams[e.id]=[e].concat(r)};let r=e.RTCPeerConnection.prototype.removeStream;e.RTCPeerConnection.prototype.removeStream=function(e){return this._shimmedLocalStreams=this._shimmedLocalStreams||{},delete this._shimmedLocalStreams[e.id],r.apply(this,arguments)};let i=e.RTCPeerConnection.prototype.removeTrack;e.RTCPeerConnection.prototype.removeTrack=function(e){return this._shimmedLocalStreams=this._shimmedLocalStreams||{},e&&Object.keys(this._shimmedLocalStreams).forEach(t=>{let n=this._shimmedLocalStreams[t].indexOf(e);-1!==n&&this._shimmedLocalStreams[t].splice(n,1),1===this._shimmedLocalStreams[t].length&&delete this._shimmedLocalStreams[t]}),i.apply(this,arguments)}}function R(e,t){if(!e.RTCPeerConnection)return;if(e.RTCPeerConnection.prototype.addTrack&&t.version>=65)return k(e);let n=e.RTCPeerConnection.prototype.getLocalStreams;e.RTCPeerConnection.prototype.getLocalStreams=function(){let e=n.apply(this);return this._reverseStreams=this._reverseStreams||{},e.map(e=>this._reverseStreams[e.id])};let r=e.RTCPeerConnection.prototype.addStream;e.RTCPeerConnection.prototype.addStream=function(t){if(this._streams=this._streams||{},this._reverseStreams=this._reverseStreams||{},t.getTracks().forEach(e=>{if(this.getSenders().find(t=>t.track===e))throw new DOMException("Track already exists.","InvalidAccessError")}),!this._reverseStreams[t.id]){let n=new e.MediaStream(t.getTracks());this._streams[t.id]=n,this._reverseStreams[n.id]=t,t=n}r.apply(this,[t])};let i=e.RTCPeerConnection.prototype.removeStream;function s(e,t){let n=t.sdp;return Object.keys(e._reverseStreams||[]).forEach(t=>{let r=e._reverseStreams[t],i=e._streams[r.id];n=n.replace(RegExp(i.id,"g"),r.id)}),new RTCSessionDescription({type:t.type,sdp:n})}e.RTCPeerConnection.prototype.removeStream=function(e){this._streams=this._streams||{},this._reverseStreams=this._reverseStreams||{},i.apply(this,[this._streams[e.id]||e]),delete this._reverseStreams[this._streams[e.id]?this._streams[e.id].id:e.id],delete this._streams[e.id]},e.RTCPeerConnection.prototype.addTrack=function(t,n){if("closed"===this.signalingState)throw new DOMException("The RTCPeerConnection's signalingState is 'closed'.","InvalidStateError");let r=[].slice.call(arguments,1);if(1!==r.length||!r[0].getTracks().find(e=>e===t))throw new DOMException("The adapter.js addTrack polyfill only supports a single  stream which is associated with the specified track.","NotSupportedError");if(this.getSenders().find(e=>e.track===t))throw new DOMException("Track already exists.","InvalidAccessError");this._streams=this._streams||{},this._reverseStreams=this._reverseStreams||{};let i=this._streams[n.id];if(i)i.addTrack(t),Promise.resolve().then(()=>{this.dispatchEvent(new Event("negotiationneeded"))});else{let r=new e.MediaStream([t]);this._streams[n.id]=r,this._reverseStreams[r.id]=n,this.addStream(r)}return this.getSenders().find(e=>e.track===t)},["createOffer","createAnswer"].forEach(function(t){let n=e.RTCPeerConnection.prototype[t];e.RTCPeerConnection.prototype[t]=({[t](){let e=arguments,t=arguments.length&&"function"==typeof arguments[0];return t?n.apply(this,[t=>{let n=s(this,t);e[0].apply(null,[n])},t=>{e[1]&&e[1].apply(null,t)},arguments[2]]):n.apply(this,arguments).then(e=>s(this,e))}})[t]});let o=e.RTCPeerConnection.prototype.setLocalDescription;e.RTCPeerConnection.prototype.setLocalDescription=function(){var e,t;let n;return arguments.length&&arguments[0].type?(arguments[0]=(e=this,t=arguments[0],n=t.sdp,Object.keys(e._reverseStreams||[]).forEach(t=>{let r=e._reverseStreams[t],i=e._streams[r.id];n=n.replace(RegExp(r.id,"g"),i.id)}),new RTCSessionDescription({type:t.type,sdp:n})),o.apply(this,arguments)):o.apply(this,arguments)};let a=Object.getOwnPropertyDescriptor(e.RTCPeerConnection.prototype,"localDescription");Object.defineProperty(e.RTCPeerConnection.prototype,"localDescription",{get(){let e=a.get.apply(this);return""===e.type?e:s(this,e)}}),e.RTCPeerConnection.prototype.removeTrack=function(e){let t;if("closed"===this.signalingState)throw new DOMException("The RTCPeerConnection's signalingState is 'closed'.","InvalidStateError");if(!e._pc)throw new DOMException("Argument 1 of RTCPeerConnection.removeTrack does not implement interface RTCRtpSender.","TypeError");if(e._pc!==this)throw new DOMException("Sender was not created by this connection.","InvalidAccessError");this._streams=this._streams||{},Object.keys(this._streams).forEach(n=>{this._streams[n].getTracks().find(t=>e.track===t)&&(t=this._streams[n])}),t&&(1===t.getTracks().length?this.removeStream(this._reverseStreams[t.id]):t.removeTrack(e.track),this.dispatchEvent(new Event("negotiationneeded")))}}function P(e,t){!e.RTCPeerConnection&&e.webkitRTCPeerConnection&&(e.RTCPeerConnection=e.webkitRTCPeerConnection),e.RTCPeerConnection&&t.version<53&&["setLocalDescription","setRemoteDescription","addIceCandidate"].forEach(function(t){let n=e.RTCPeerConnection.prototype[t];e.RTCPeerConnection.prototype[t]=({[t](){return arguments[0]=new("addIceCandidate"===t?e.RTCIceCandidate:e.RTCSessionDescription)(arguments[0]),n.apply(this,arguments)}})[t]})}function w(e,t){l(e,"negotiationneeded",e=>{let n=e.target;if(!(t.version<72)&&(!n.getConfiguration||"plan-b"!==n.getConfiguration().sdpSemantics)||"stable"===n.signalingState)return e})}"use strict";e(y,"shimMediaStream",()=>v),e(y,"shimOnTrack",()=>b),e(y,"shimGetSendersWithDtmf",()=>T),e(y,"shimSenderReceiverGetStats",()=>S),e(y,"shimAddTrackRemoveTrackWithNative",()=>k),e(y,"shimAddTrackRemoveTrack",()=>R),e(y,"shimPeerConnection",()=>P),e(y,"fixNegotiationNeeded",()=>w),e(y,"shimGetUserMedia",()=>C);var E={};function x(e,t){let n=e&&e.navigator,r=e&&e.MediaStreamTrack;if(n.getUserMedia=function(e,t,r){m("navigator.getUserMedia","navigator.mediaDevices.getUserMedia"),n.mediaDevices.getUserMedia(e).then(t,r)},!(t.version>55&&"autoGainControl"in n.mediaDevices.getSupportedConstraints())){let e=function(e,t,n){t in e&&!(n in e)&&(e[n]=e[t],delete e[t])},t=n.mediaDevices.getUserMedia.bind(n.mediaDevices);if(n.mediaDevices.getUserMedia=function(n){return"object"==typeof n&&"object"==typeof n.audio&&(e((n=JSON.parse(JSON.stringify(n))).audio,"autoGainControl","mozAutoGainControl"),e(n.audio,"noiseSuppression","mozNoiseSuppression")),t(n)},r&&r.prototype.getSettings){let t=r.prototype.getSettings;r.prototype.getSettings=function(){let n=t.apply(this,arguments);return e(n,"mozAutoGainControl","autoGainControl"),e(n,"mozNoiseSuppression","noiseSuppression"),n}}if(r&&r.prototype.applyConstraints){let t=r.prototype.applyConstraints;r.prototype.applyConstraints=function(n){return"audio"===this.kind&&"object"==typeof n&&(e(n=JSON.parse(JSON.stringify(n)),"autoGainControl","mozAutoGainControl"),e(n,"noiseSuppression","mozNoiseSuppression")),t.apply(this,[n])}}}}"use strict";function D(e,t){e.navigator.mediaDevices&&"getDisplayMedia"in e.navigator.mediaDevices||e.navigator.mediaDevices&&(e.navigator.mediaDevices.getDisplayMedia=function(n){if(!(n&&n.video)){let e=new DOMException("getDisplayMedia without video constraints is undefined");return e.name="NotFoundError",e.code=8,Promise.reject(e)}return!0===n.video?n.video={mediaSource:t}:n.video.mediaSource=t,e.navigator.mediaDevices.getUserMedia(n)})}"use strict";function I(e){"object"==typeof e&&e.RTCTrackEvent&&"receiver"in e.RTCTrackEvent.prototype&&!("transceiver"in e.RTCTrackEvent.prototype)&&Object.defineProperty(e.RTCTrackEvent.prototype,"transceiver",{get(){return{receiver:this.receiver}}})}function M(e,t){if("object"!=typeof e||!(e.RTCPeerConnection||e.mozRTCPeerConnection))return;!e.RTCPeerConnection&&e.mozRTCPeerConnection&&(e.RTCPeerConnection=e.mozRTCPeerConnection),t.version<53&&["setLocalDescription","setRemoteDescription","addIceCandidate"].forEach(function(t){let n=e.RTCPeerConnection.prototype[t];e.RTCPeerConnection.prototype[t]=({[t](){return arguments[0]=new("addIceCandidate"===t?e.RTCIceCandidate:e.RTCSessionDescription)(arguments[0]),n.apply(this,arguments)}})[t]});let n={inboundrtp:"inbound-rtp",outboundrtp:"outbound-rtp",candidatepair:"candidate-pair",localcandidate:"local-candidate",remotecandidate:"remote-candidate"},r=e.RTCPeerConnection.prototype.getStats;e.RTCPeerConnection.prototype.getStats=function(){let[e,i,s]=arguments;return r.apply(this,[e||null]).then(e=>{if(t.version<53&&!i)try{e.forEach(e=>{e.type=n[e.type]||e.type})}catch(t){if("TypeError"!==t.name)throw t;e.forEach((t,r)=>{e.set(r,Object.assign({},t,{type:n[t.type]||t.type}))})}return e}).then(i,s)}}function O(e){if(!("object"==typeof e&&e.RTCPeerConnection&&e.RTCRtpSender)||e.RTCRtpSender&&"getStats"in e.RTCRtpSender.prototype)return;let t=e.RTCPeerConnection.prototype.getSenders;t&&(e.RTCPeerConnection.prototype.getSenders=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e});let n=e.RTCPeerConnection.prototype.addTrack;n&&(e.RTCPeerConnection.prototype.addTrack=function(){let e=n.apply(this,arguments);return e._pc=this,e}),e.RTCRtpSender.prototype.getStats=function(){return this.track?this._pc.getStats(this.track):Promise.resolve(new Map)}}function L(e){if(!("object"==typeof e&&e.RTCPeerConnection&&e.RTCRtpSender)||e.RTCRtpSender&&"getStats"in e.RTCRtpReceiver.prototype)return;let t=e.RTCPeerConnection.prototype.getReceivers;t&&(e.RTCPeerConnection.prototype.getReceivers=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e}),l(e,"track",e=>(e.receiver._pc=e.srcElement,e)),e.RTCRtpReceiver.prototype.getStats=function(){return this._pc.getStats(this.track)}}function A(e){!e.RTCPeerConnection||"removeStream"in e.RTCPeerConnection.prototype||(e.RTCPeerConnection.prototype.removeStream=function(e){m("removeStream","removeTrack"),this.getSenders().forEach(t=>{t.track&&e.getTracks().includes(t.track)&&this.removeTrack(t)})})}function j(e){e.DataChannel&&!e.RTCDataChannel&&(e.RTCDataChannel=e.DataChannel)}function B(e){if(!("object"==typeof e&&e.RTCPeerConnection))return;let t=e.RTCPeerConnection.prototype.addTransceiver;t&&(e.RTCPeerConnection.prototype.addTransceiver=function(){this.setParametersPromises=[];let e=arguments[1]&&arguments[1].sendEncodings;void 0===e&&(e=[]);let n=(e=[...e]).length>0;n&&e.forEach(e=>{if("rid"in e&&!/^[a-z0-9]{0,16}$/i.test(e.rid))throw TypeError("Invalid RID value provided.");if("scaleResolutionDownBy"in e&&!(parseFloat(e.scaleResolutionDownBy)>=1))throw RangeError("scale_resolution_down_by must be >= 1.0");if("maxFramerate"in e&&!(parseFloat(e.maxFramerate)>=0))throw RangeError("max_framerate must be >= 0.0")});let r=t.apply(this,arguments);if(n){let{sender:t}=r,n=t.getParameters();"encodings"in n&&(1!==n.encodings.length||0!==Object.keys(n.encodings[0]).length)||(n.encodings=e,t.sendEncodings=e,this.setParametersPromises.push(t.setParameters(n).then(()=>{delete t.sendEncodings}).catch(()=>{delete t.sendEncodings})))}return r})}function U(e){if(!("object"==typeof e&&e.RTCRtpSender))return;let t=e.RTCRtpSender.prototype.getParameters;t&&(e.RTCRtpSender.prototype.getParameters=function(){let e=t.apply(this,arguments);return"encodings"in e||(e.encodings=[].concat(this.sendEncodings||[{}])),e})}function F(e){if(!("object"==typeof e&&e.RTCPeerConnection))return;let t=e.RTCPeerConnection.prototype.createOffer;e.RTCPeerConnection.prototype.createOffer=function(){return this.setParametersPromises&&this.setParametersPromises.length?Promise.all(this.setParametersPromises).then(()=>t.apply(this,arguments)).finally(()=>{this.setParametersPromises=[]}):t.apply(this,arguments)}}function N(e){if(!("object"==typeof e&&e.RTCPeerConnection))return;let t=e.RTCPeerConnection.prototype.createAnswer;e.RTCPeerConnection.prototype.createAnswer=function(){return this.setParametersPromises&&this.setParametersPromises.length?Promise.all(this.setParametersPromises).then(()=>t.apply(this,arguments)).finally(()=>{this.setParametersPromises=[]}):t.apply(this,arguments)}}"use strict";e(E,"shimOnTrack",()=>I),e(E,"shimPeerConnection",()=>M),e(E,"shimSenderGetStats",()=>O),e(E,"shimReceiverGetStats",()=>L),e(E,"shimRemoveStream",()=>A),e(E,"shimRTCDataChannel",()=>j),e(E,"shimAddTransceiver",()=>B),e(E,"shimGetParameters",()=>U),e(E,"shimCreateOffer",()=>F),e(E,"shimCreateAnswer",()=>N),e(E,"shimGetUserMedia",()=>x),e(E,"shimGetDisplayMedia",()=>D);var z={};function $(e){if("object"==typeof e&&e.RTCPeerConnection){if("getLocalStreams"in e.RTCPeerConnection.prototype||(e.RTCPeerConnection.prototype.getLocalStreams=function(){return this._localStreams||(this._localStreams=[]),this._localStreams}),!("addStream"in e.RTCPeerConnection.prototype)){let t=e.RTCPeerConnection.prototype.addTrack;e.RTCPeerConnection.prototype.addStream=function(e){this._localStreams||(this._localStreams=[]),this._localStreams.includes(e)||this._localStreams.push(e),e.getAudioTracks().forEach(n=>t.call(this,n,e)),e.getVideoTracks().forEach(n=>t.call(this,n,e))},e.RTCPeerConnection.prototype.addTrack=function(e,...n){return n&&n.forEach(e=>{this._localStreams?this._localStreams.includes(e)||this._localStreams.push(e):this._localStreams=[e]}),t.apply(this,arguments)}}"removeStream"in e.RTCPeerConnection.prototype||(e.RTCPeerConnection.prototype.removeStream=function(e){this._localStreams||(this._localStreams=[]);let t=this._localStreams.indexOf(e);if(-1===t)return;this._localStreams.splice(t,1);let n=e.getTracks();this.getSenders().forEach(e=>{n.includes(e.track)&&this.removeTrack(e)})})}}function V(e){if("object"==typeof e&&e.RTCPeerConnection&&("getRemoteStreams"in e.RTCPeerConnection.prototype||(e.RTCPeerConnection.prototype.getRemoteStreams=function(){return this._remoteStreams?this._remoteStreams:[]}),!("onaddstream"in e.RTCPeerConnection.prototype))){Object.defineProperty(e.RTCPeerConnection.prototype,"onaddstream",{get(){return this._onaddstream},set(e){this._onaddstream&&(this.removeEventListener("addstream",this._onaddstream),this.removeEventListener("track",this._onaddstreampoly)),this.addEventListener("addstream",this._onaddstream=e),this.addEventListener("track",this._onaddstreampoly=e=>{e.streams.forEach(e=>{if(this._remoteStreams||(this._remoteStreams=[]),this._remoteStreams.includes(e))return;this._remoteStreams.push(e);let t=new Event("addstream");t.stream=e,this.dispatchEvent(t)})})}});let t=e.RTCPeerConnection.prototype.setRemoteDescription;e.RTCPeerConnection.prototype.setRemoteDescription=function(){let e=this;return this._onaddstreampoly||this.addEventListener("track",this._onaddstreampoly=function(t){t.streams.forEach(t=>{if(e._remoteStreams||(e._remoteStreams=[]),e._remoteStreams.indexOf(t)>=0)return;e._remoteStreams.push(t);let n=new Event("addstream");n.stream=t,e.dispatchEvent(n)})}),t.apply(e,arguments)}}}function G(e){if("object"!=typeof e||!e.RTCPeerConnection)return;let t=e.RTCPeerConnection.prototype,n=t.createOffer,r=t.createAnswer,i=t.setLocalDescription,s=t.setRemoteDescription,o=t.addIceCandidate;t.createOffer=function(e,t){let r=arguments.length>=2?arguments[2]:arguments[0],i=n.apply(this,[r]);return t?(i.then(e,t),Promise.resolve()):i},t.createAnswer=function(e,t){let n=arguments.length>=2?arguments[2]:arguments[0],i=r.apply(this,[n]);return t?(i.then(e,t),Promise.resolve()):i};let a=function(e,t,n){let r=i.apply(this,[e]);return n?(r.then(t,n),Promise.resolve()):r};t.setLocalDescription=a,t.setRemoteDescription=a=function(e,t,n){let r=s.apply(this,[e]);return n?(r.then(t,n),Promise.resolve()):r},t.addIceCandidate=function(e,t,n){let r=o.apply(this,[e]);return n?(r.then(t,n),Promise.resolve()):r}}function J(e){let t=e&&e.navigator;if(t.mediaDevices&&t.mediaDevices.getUserMedia){let e=t.mediaDevices,n=e.getUserMedia.bind(e);t.mediaDevices.getUserMedia=e=>n(W(e))}!t.getUserMedia&&t.mediaDevices&&t.mediaDevices.getUserMedia&&(t.getUserMedia=(function(e,n,r){t.mediaDevices.getUserMedia(e).then(n,r)}).bind(t))}function W(e){return e&&void 0!==e.video?Object.assign({},e,{video:function e(t){return _(t)?Object.keys(t).reduce(function(n,r){let i=_(t[r]),s=i?e(t[r]):t[r],o=i&&!Object.keys(s).length;return void 0===s||o?n:Object.assign(n,{[r]:s})},{}):t}(e.video)}):e}function Y(e){if(!e.RTCPeerConnection)return;let t=e.RTCPeerConnection;e.RTCPeerConnection=function(e,n){if(e&&e.iceServers){let t=[];for(let n=0;n<e.iceServers.length;n++){let r=e.iceServers[n];void 0===r.urls&&r.url?(m("RTCIceServer.url","RTCIceServer.urls"),(r=JSON.parse(JSON.stringify(r))).urls=r.url,delete r.url,t.push(r)):t.push(e.iceServers[n])}e.iceServers=t}return new t(e,n)},e.RTCPeerConnection.prototype=t.prototype,"generateCertificate"in t&&Object.defineProperty(e.RTCPeerConnection,"generateCertificate",{get:()=>t.generateCertificate})}function H(e){"object"==typeof e&&e.RTCTrackEvent&&"receiver"in e.RTCTrackEvent.prototype&&!("transceiver"in e.RTCTrackEvent.prototype)&&Object.defineProperty(e.RTCTrackEvent.prototype,"transceiver",{get(){return{receiver:this.receiver}}})}function K(e){let t=e.RTCPeerConnection.prototype.createOffer;e.RTCPeerConnection.prototype.createOffer=function(e){if(e){void 0!==e.offerToReceiveAudio&&(e.offerToReceiveAudio=!!e.offerToReceiveAudio);let t=this.getTransceivers().find(e=>"audio"===e.receiver.track.kind);!1===e.offerToReceiveAudio&&t?"sendrecv"===t.direction?t.setDirection?t.setDirection("sendonly"):t.direction="sendonly":"recvonly"===t.direction&&(t.setDirection?t.setDirection("inactive"):t.direction="inactive"):!0!==e.offerToReceiveAudio||t||this.addTransceiver("audio",{direction:"recvonly"}),void 0!==e.offerToReceiveVideo&&(e.offerToReceiveVideo=!!e.offerToReceiveVideo);let n=this.getTransceivers().find(e=>"video"===e.receiver.track.kind);!1===e.offerToReceiveVideo&&n?"sendrecv"===n.direction?n.setDirection?n.setDirection("sendonly"):n.direction="sendonly":"recvonly"===n.direction&&(n.setDirection?n.setDirection("inactive"):n.direction="inactive"):!0!==e.offerToReceiveVideo||n||this.addTransceiver("video",{direction:"recvonly"})}return t.apply(this,arguments)}}function X(e){"object"!=typeof e||e.AudioContext||(e.AudioContext=e.webkitAudioContext)}e(z,"shimLocalStreamsAPI",()=>$),e(z,"shimRemoteStreamsAPI",()=>V),e(z,"shimCallbacksAPI",()=>G),e(z,"shimGetUserMedia",()=>J),e(z,"shimConstraints",()=>W),e(z,"shimRTCIceServerUrls",()=>Y),e(z,"shimTrackEventTransceiver",()=>H),e(z,"shimCreateOfferLegacy",()=>K),e(z,"shimAudioContext",()=>X);var Q={};"use strict";e(Q,"shimRTCIceCandidate",()=>ee),e(Q,"shimRTCIceCandidateRelayProtocol",()=>et),e(Q,"shimMaxMessageSize",()=>en),e(Q,"shimSendThrowTypeError",()=>er),e(Q,"shimConnectionState",()=>ei),e(Q,"removeExtmapAllowMixed",()=>es),e(Q,"shimAddIceCandidateNullOrEmpty",()=>eo),e(Q,"shimParameterlessSetLocalDescription",()=>ea);var q={};"use strict";let Z={};function ee(e){if(!e.RTCIceCandidate||e.RTCIceCandidate&&"foundation"in e.RTCIceCandidate.prototype)return;let n=e.RTCIceCandidate;e.RTCIceCandidate=function(e){if("object"==typeof e&&e.candidate&&0===e.candidate.indexOf("a=")&&((e=JSON.parse(JSON.stringify(e))).candidate=e.candidate.substring(2)),e.candidate&&e.candidate.length){let r=new n(e),i=t(q).parseCandidate(e.candidate);for(let e in i)e in r||Object.defineProperty(r,e,{value:i[e]});return r.toJSON=function(){return{candidate:r.candidate,sdpMid:r.sdpMid,sdpMLineIndex:r.sdpMLineIndex,usernameFragment:r.usernameFragment}},r}return new n(e)},e.RTCIceCandidate.prototype=n.prototype,l(e,"icecandidate",t=>(t.candidate&&Object.defineProperty(t,"candidate",{value:new e.RTCIceCandidate(t.candidate),writable:"false"}),t))}function et(e){!e.RTCIceCandidate||e.RTCIceCandidate&&"relayProtocol"in e.RTCIceCandidate.prototype||l(e,"icecandidate",e=>{if(e.candidate){let n=t(q).parseCandidate(e.candidate.candidate);"relay"===n.type&&(e.candidate.relayProtocol=({0:"tls",1:"tcp",2:"udp"})[n.priority>>24])}return e})}function en(e,n){if(!e.RTCPeerConnection)return;"sctp"in e.RTCPeerConnection.prototype||Object.defineProperty(e.RTCPeerConnection.prototype,"sctp",{get(){return void 0===this._sctp?null:this._sctp}});let r=function(e){if(!e||!e.sdp)return!1;let n=t(q).splitSections(e.sdp);return n.shift(),n.some(e=>{let n=t(q).parseMLine(e);return n&&"application"===n.kind&&-1!==n.protocol.indexOf("SCTP")})},i=function(e){let t=e.sdp.match(/mozilla...THIS_IS_SDPARTA-(\d+)/);if(null===t||t.length<2)return -1;let n=parseInt(t[1],10);return n!=n?-1:n},s=function(e){let t=65536;return"firefox"===n.browser&&(t=n.version<57?-1===e?16384:0x7ffffff5:n.version<60?57===n.version?65535:65536:0x7ffffff5),t},o=function(e,r){let i=65536;"firefox"===n.browser&&57===n.version&&(i=65535);let s=t(q).matchPrefix(e.sdp,"a=max-message-size:");return s.length>0?i=parseInt(s[0].substring(19),10):"firefox"===n.browser&&-1!==r&&(i=0x7ffffff5),i},a=e.RTCPeerConnection.prototype.setRemoteDescription;e.RTCPeerConnection.prototype.setRemoteDescription=function(){if(this._sctp=null,"chrome"===n.browser&&n.version>=76){let{sdpSemantics:e}=this.getConfiguration();"plan-b"===e&&Object.defineProperty(this,"sctp",{get(){return void 0===this._sctp?null:this._sctp},enumerable:!0,configurable:!0})}if(r(arguments[0])){let e,t=i(arguments[0]),n=s(t),r=o(arguments[0],t);e=0===n&&0===r?Number.POSITIVE_INFINITY:0===n||0===r?Math.max(n,r):Math.min(n,r);let a={};Object.defineProperty(a,"maxMessageSize",{get:()=>e}),this._sctp=a}return a.apply(this,arguments)}}function er(e){if(!(e.RTCPeerConnection&&"createDataChannel"in e.RTCPeerConnection.prototype))return;function t(e,t){let n=e.send;e.send=function(){let r=arguments[0],i=r.length||r.size||r.byteLength;if("open"===e.readyState&&t.sctp&&i>t.sctp.maxMessageSize)throw TypeError("Message too large (can send a maximum of "+t.sctp.maxMessageSize+" bytes)");return n.apply(e,arguments)}}let n=e.RTCPeerConnection.prototype.createDataChannel;e.RTCPeerConnection.prototype.createDataChannel=function(){let e=n.apply(this,arguments);return t(e,this),e},l(e,"datachannel",e=>(t(e.channel,e.target),e))}function ei(e){if(!e.RTCPeerConnection||"connectionState"in e.RTCPeerConnection.prototype)return;let t=e.RTCPeerConnection.prototype;Object.defineProperty(t,"connectionState",{get(){return({completed:"connected",checking:"connecting"})[this.iceConnectionState]||this.iceConnectionState},enumerable:!0,configurable:!0}),Object.defineProperty(t,"onconnectionstatechange",{get(){return this._onconnectionstatechange||null},set(e){this._onconnectionstatechange&&(this.removeEventListener("connectionstatechange",this._onconnectionstatechange),delete this._onconnectionstatechange),e&&this.addEventListener("connectionstatechange",this._onconnectionstatechange=e)},enumerable:!0,configurable:!0}),["setLocalDescription","setRemoteDescription"].forEach(e=>{let n=t[e];t[e]=function(){return this._connectionstatechangepoly||(this._connectionstatechangepoly=e=>{let t=e.target;if(t._lastConnectionState!==t.connectionState){t._lastConnectionState=t.connectionState;let n=new Event("connectionstatechange",e);t.dispatchEvent(n)}return e},this.addEventListener("iceconnectionstatechange",this._connectionstatechangepoly)),n.apply(this,arguments)}})}function es(e,t){if(!e.RTCPeerConnection||"chrome"===t.browser&&t.version>=71||"safari"===t.browser&&t.version>=605)return;let n=e.RTCPeerConnection.prototype.setRemoteDescription;e.RTCPeerConnection.prototype.setRemoteDescription=function(t){if(t&&t.sdp&&-1!==t.sdp.indexOf("\na=extmap-allow-mixed")){let n=t.sdp.split("\n").filter(e=>"a=extmap-allow-mixed"!==e.trim()).join("\n");e.RTCSessionDescription&&t instanceof e.RTCSessionDescription?arguments[0]=new e.RTCSessionDescription({type:t.type,sdp:n}):t.sdp=n}return n.apply(this,arguments)}}function eo(e,t){if(!(e.RTCPeerConnection&&e.RTCPeerConnection.prototype))return;let n=e.RTCPeerConnection.prototype.addIceCandidate;n&&0!==n.length&&(e.RTCPeerConnection.prototype.addIceCandidate=function(){return arguments[0]?("chrome"===t.browser&&t.version<78||"firefox"===t.browser&&t.version<68||"safari"===t.browser)&&arguments[0]&&""===arguments[0].candidate?Promise.resolve():n.apply(this,arguments):(arguments[1]&&arguments[1].apply(null),Promise.resolve())})}function ea(e,t){if(!(e.RTCPeerConnection&&e.RTCPeerConnection.prototype))return;let n=e.RTCPeerConnection.prototype.setLocalDescription;n&&0!==n.length&&(e.RTCPeerConnection.prototype.setLocalDescription=function(){let e=arguments[0]||{};if("object"!=typeof e||e.type&&e.sdp)return n.apply(this,arguments);if(!(e={type:e.type,sdp:e.sdp}).type)switch(this.signalingState){case"stable":case"have-local-offer":case"have-remote-pranswer":e.type="offer";break;default:e.type="answer"}return e.sdp||"offer"!==e.type&&"answer"!==e.type?n.apply(this,[e]):("offer"===e.type?this.createOffer:this.createAnswer).apply(this).then(e=>n.apply(this,[e]))})}"use strict";Z.generateIdentifier=function(){return Math.random().toString(36).substring(2,12)},Z.localCName=Z.generateIdentifier(),Z.splitLines=function(e){return e.trim().split("\n").map(e=>e.trim())},Z.splitSections=function(e){return e.split("\nm=").map((e,t)=>(t>0?"m="+e:e).trim()+"\r\n")},Z.getDescription=function(e){let t=Z.splitSections(e);return t&&t[0]},Z.getMediaSections=function(e){let t=Z.splitSections(e);return t.shift(),t},Z.matchPrefix=function(e,t){return Z.splitLines(e).filter(e=>0===e.indexOf(t))},Z.parseCandidate=function(e){let t,n={foundation:(t=0===e.indexOf("a=candidate:")?e.substring(12).split(" "):e.substring(10).split(" "))[0],component:{1:"rtp",2:"rtcp"}[t[1]]||t[1],protocol:t[2].toLowerCase(),priority:parseInt(t[3],10),ip:t[4],address:t[4],port:parseInt(t[5],10),type:t[7]};for(let e=8;e<t.length;e+=2)switch(t[e]){case"raddr":n.relatedAddress=t[e+1];break;case"rport":n.relatedPort=parseInt(t[e+1],10);break;case"tcptype":n.tcpType=t[e+1];break;case"ufrag":n.ufrag=t[e+1],n.usernameFragment=t[e+1];break;default:void 0===n[t[e]]&&(n[t[e]]=t[e+1])}return n},Z.writeCandidate=function(e){let t=[];t.push(e.foundation);let n=e.component;"rtp"===n?t.push(1):"rtcp"===n?t.push(2):t.push(n),t.push(e.protocol.toUpperCase()),t.push(e.priority),t.push(e.address||e.ip),t.push(e.port);let r=e.type;return t.push("typ"),t.push(r),"host"!==r&&e.relatedAddress&&e.relatedPort&&(t.push("raddr"),t.push(e.relatedAddress),t.push("rport"),t.push(e.relatedPort)),e.tcpType&&"tcp"===e.protocol.toLowerCase()&&(t.push("tcptype"),t.push(e.tcpType)),(e.usernameFragment||e.ufrag)&&(t.push("ufrag"),t.push(e.usernameFragment||e.ufrag)),"candidate:"+t.join(" ")},Z.parseIceOptions=function(e){return e.substring(14).split(" ")},Z.parseRtpMap=function(e){let t=e.substring(9).split(" "),n={payloadType:parseInt(t.shift(),10)};return n.name=(t=t[0].split("/"))[0],n.clockRate=parseInt(t[1],10),n.channels=3===t.length?parseInt(t[2],10):1,n.numChannels=n.channels,n},Z.writeRtpMap=function(e){let t=e.payloadType;void 0!==e.preferredPayloadType&&(t=e.preferredPayloadType);let n=e.channels||e.numChannels||1;return"a=rtpmap:"+t+" "+e.name+"/"+e.clockRate+(1!==n?"/"+n:"")+"\r\n"},Z.parseExtmap=function(e){let t=e.substring(9).split(" ");return{id:parseInt(t[0],10),direction:t[0].indexOf("/")>0?t[0].split("/")[1]:"sendrecv",uri:t[1],attributes:t.slice(2).join(" ")}},Z.writeExtmap=function(e){return"a=extmap:"+(e.id||e.preferredId)+(e.direction&&"sendrecv"!==e.direction?"/"+e.direction:"")+" "+e.uri+(e.attributes?" "+e.attributes:"")+"\r\n"},Z.parseFmtp=function(e){let t,n={},r=e.substring(e.indexOf(" ")+1).split(";");for(let e=0;e<r.length;e++)n[(t=r[e].trim().split("="))[0].trim()]=t[1];return n},Z.writeFmtp=function(e){let t="",n=e.payloadType;if(void 0!==e.preferredPayloadType&&(n=e.preferredPayloadType),e.parameters&&Object.keys(e.parameters).length){let r=[];Object.keys(e.parameters).forEach(t=>{void 0!==e.parameters[t]?r.push(t+"="+e.parameters[t]):r.push(t)}),t+="a=fmtp:"+n+" "+r.join(";")+"\r\n"}return t},Z.parseRtcpFb=function(e){let t=e.substring(e.indexOf(" ")+1).split(" ");return{type:t.shift(),parameter:t.join(" ")}},Z.writeRtcpFb=function(e){let t="",n=e.payloadType;return void 0!==e.preferredPayloadType&&(n=e.preferredPayloadType),e.rtcpFeedback&&e.rtcpFeedback.length&&e.rtcpFeedback.forEach(e=>{t+="a=rtcp-fb:"+n+" "+e.type+(e.parameter&&e.parameter.length?" "+e.parameter:"")+"\r\n"}),t},Z.parseSsrcMedia=function(e){let t=e.indexOf(" "),n={ssrc:parseInt(e.substring(7,t),10)},r=e.indexOf(":",t);return r>-1?(n.attribute=e.substring(t+1,r),n.value=e.substring(r+1)):n.attribute=e.substring(t+1),n},Z.parseSsrcGroup=function(e){let t=e.substring(13).split(" ");return{semantics:t.shift(),ssrcs:t.map(e=>parseInt(e,10))}},Z.getMid=function(e){let t=Z.matchPrefix(e,"a=mid:")[0];if(t)return t.substring(6)},Z.parseFingerprint=function(e){let t=e.substring(14).split(" ");return{algorithm:t[0].toLowerCase(),value:t[1].toUpperCase()}},Z.getDtlsParameters=function(e,t){return{role:"auto",fingerprints:Z.matchPrefix(e+t,"a=fingerprint:").map(Z.parseFingerprint)}},Z.writeDtlsParameters=function(e,t){let n="a=setup:"+t+"\r\n";return e.fingerprints.forEach(e=>{n+="a=fingerprint:"+e.algorithm+" "+e.value+"\r\n"}),n},Z.parseCryptoLine=function(e){let t=e.substring(9).split(" ");return{tag:parseInt(t[0],10),cryptoSuite:t[1],keyParams:t[2],sessionParams:t.slice(3)}},Z.writeCryptoLine=function(e){return"a=crypto:"+e.tag+" "+e.cryptoSuite+" "+("object"==typeof e.keyParams?Z.writeCryptoKeyParams(e.keyParams):e.keyParams)+(e.sessionParams?" "+e.sessionParams.join(" "):"")+"\r\n"},Z.parseCryptoKeyParams=function(e){if(0!==e.indexOf("inline:"))return null;let t=e.substring(7).split("|");return{keyMethod:"inline",keySalt:t[0],lifeTime:t[1],mkiValue:t[2]?t[2].split(":")[0]:void 0,mkiLength:t[2]?t[2].split(":")[1]:void 0}},Z.writeCryptoKeyParams=function(e){return e.keyMethod+":"+e.keySalt+(e.lifeTime?"|"+e.lifeTime:"")+(e.mkiValue&&e.mkiLength?"|"+e.mkiValue+":"+e.mkiLength:"")},Z.getCryptoParameters=function(e,t){return Z.matchPrefix(e+t,"a=crypto:").map(Z.parseCryptoLine)},Z.getIceParameters=function(e,t){let n=Z.matchPrefix(e+t,"a=ice-ufrag:")[0],r=Z.matchPrefix(e+t,"a=ice-pwd:")[0];return n&&r?{usernameFragment:n.substring(12),password:r.substring(10)}:null},Z.writeIceParameters=function(e){let t="a=ice-ufrag:"+e.usernameFragment+"\r\na=ice-pwd:"+e.password+"\r\n";return e.iceLite&&(t+="a=ice-lite\r\n"),t},Z.parseRtpParameters=function(e){let t={codecs:[],headerExtensions:[],fecMechanisms:[],rtcp:[]},n=Z.splitLines(e)[0].split(" ");t.profile=n[2];for(let r=3;r<n.length;r++){let i=n[r],s=Z.matchPrefix(e,"a=rtpmap:"+i+" ")[0];if(s){let n=Z.parseRtpMap(s),r=Z.matchPrefix(e,"a=fmtp:"+i+" ");switch(n.parameters=r.length?Z.parseFmtp(r[0]):{},n.rtcpFeedback=Z.matchPrefix(e,"a=rtcp-fb:"+i+" ").map(Z.parseRtcpFb),t.codecs.push(n),n.name.toUpperCase()){case"RED":case"ULPFEC":t.fecMechanisms.push(n.name.toUpperCase())}}}Z.matchPrefix(e,"a=extmap:").forEach(e=>{t.headerExtensions.push(Z.parseExtmap(e))});let r=Z.matchPrefix(e,"a=rtcp-fb:* ").map(Z.parseRtcpFb);return t.codecs.forEach(e=>{r.forEach(t=>{e.rtcpFeedback.find(e=>e.type===t.type&&e.parameter===t.parameter)||e.rtcpFeedback.push(t)})}),t},Z.writeRtpDescription=function(e,t){let n="";n+="m="+e+" ",n+=t.codecs.length>0?"9":"0",n+=" "+(t.profile||"UDP/TLS/RTP/SAVPF")+" ",n+=t.codecs.map(e=>void 0!==e.preferredPayloadType?e.preferredPayloadType:e.payloadType).join(" ")+"\r\n",n+="c=IN IP4 0.0.0.0\r\n",n+="a=rtcp:9 IN IP4 0.0.0.0\r\n",t.codecs.forEach(e=>{n+=Z.writeRtpMap(e),n+=Z.writeFmtp(e),n+=Z.writeRtcpFb(e)});let r=0;return t.codecs.forEach(e=>{e.maxptime>r&&(r=e.maxptime)}),r>0&&(n+="a=maxptime:"+r+"\r\n"),t.headerExtensions&&t.headerExtensions.forEach(e=>{n+=Z.writeExtmap(e)}),n},Z.parseRtpEncodingParameters=function(e){let t,n=[],r=Z.parseRtpParameters(e),i=-1!==r.fecMechanisms.indexOf("RED"),s=-1!==r.fecMechanisms.indexOf("ULPFEC"),o=Z.matchPrefix(e,"a=ssrc:").map(e=>Z.parseSsrcMedia(e)).filter(e=>"cname"===e.attribute),a=o.length>0&&o[0].ssrc,c=Z.matchPrefix(e,"a=ssrc-group:FID").map(e=>e.substring(17).split(" ").map(e=>parseInt(e,10)));c.length>0&&c[0].length>1&&c[0][0]===a&&(t=c[0][1]),r.codecs.forEach(e=>{if("RTX"===e.name.toUpperCase()&&e.parameters.apt){let r={ssrc:a,codecPayloadType:parseInt(e.parameters.apt,10)};a&&t&&(r.rtx={ssrc:t}),n.push(r),i&&((r=JSON.parse(JSON.stringify(r))).fec={ssrc:a,mechanism:s?"red+ulpfec":"red"},n.push(r))}}),0===n.length&&a&&n.push({ssrc:a});let p=Z.matchPrefix(e,"b=");return p.length&&(p=0===p[0].indexOf("b=TIAS:")?parseInt(p[0].substring(7),10):0===p[0].indexOf("b=AS:")?950*parseInt(p[0].substring(5),10)-16e3:void 0,n.forEach(e=>{e.maxBitrate=p})),n},Z.parseRtcpParameters=function(e){let t={},n=Z.matchPrefix(e,"a=ssrc:").map(e=>Z.parseSsrcMedia(e)).filter(e=>"cname"===e.attribute)[0];n&&(t.cname=n.value,t.ssrc=n.ssrc);let r=Z.matchPrefix(e,"a=rtcp-rsize");return t.reducedSize=r.length>0,t.compound=0===r.length,t.mux=Z.matchPrefix(e,"a=rtcp-mux").length>0,t},Z.writeRtcpParameters=function(e){let t="";return e.reducedSize&&(t+="a=rtcp-rsize\r\n"),e.mux&&(t+="a=rtcp-mux\r\n"),void 0!==e.ssrc&&e.cname&&(t+="a=ssrc:"+e.ssrc+" cname:"+e.cname+"\r\n"),t},Z.parseMsid=function(e){let t,n=Z.matchPrefix(e,"a=msid:");if(1===n.length)return{stream:(t=n[0].substring(7).split(" "))[0],track:t[1]};let r=Z.matchPrefix(e,"a=ssrc:").map(e=>Z.parseSsrcMedia(e)).filter(e=>"msid"===e.attribute);if(r.length>0)return{stream:(t=r[0].value.split(" "))[0],track:t[1]}},Z.parseSctpDescription=function(e){let t,n=Z.parseMLine(e),r=Z.matchPrefix(e,"a=max-message-size:");r.length>0&&(t=parseInt(r[0].substring(19),10)),isNaN(t)&&(t=65536);let i=Z.matchPrefix(e,"a=sctp-port:");if(i.length>0)return{port:parseInt(i[0].substring(12),10),protocol:n.fmt,maxMessageSize:t};let s=Z.matchPrefix(e,"a=sctpmap:");if(s.length>0){let e=s[0].substring(10).split(" ");return{port:parseInt(e[0],10),protocol:e[1],maxMessageSize:t}}},Z.writeSctpDescription=function(e,t){let n=[];return n="DTLS/SCTP"!==e.protocol?["m="+e.kind+" 9 "+e.protocol+" "+t.protocol+"\r\n","c=IN IP4 0.0.0.0\r\n","a=sctp-port:"+t.port+"\r\n"]:["m="+e.kind+" 9 "+e.protocol+" "+t.port+"\r\n","c=IN IP4 0.0.0.0\r\n","a=sctpmap:"+t.port+" "+t.protocol+" 65535\r\n"],void 0!==t.maxMessageSize&&n.push("a=max-message-size:"+t.maxMessageSize+"\r\n"),n.join("")},Z.generateSessionId=function(){return Math.random().toString().substr(2,22)},Z.writeSessionBoilerplate=function(e,t,n){return"v=0\r\no="+(n||"thisisadapterortc")+" "+(e||Z.generateSessionId())+" "+(void 0!==t?t:2)+" IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n"},Z.getDirection=function(e,t){let n=Z.splitLines(e);for(let e=0;e<n.length;e++)switch(n[e]){case"a=sendrecv":case"a=sendonly":case"a=recvonly":case"a=inactive":return n[e].substring(2)}return t?Z.getDirection(t):"sendrecv"},Z.getKind=function(e){return Z.splitLines(e)[0].split(" ")[0].substring(2)},Z.isRejected=function(e){return"0"===e.split(" ",2)[1]},Z.parseMLine=function(e){let t=Z.splitLines(e)[0].substring(2).split(" ");return{kind:t[0],port:parseInt(t[1],10),protocol:t[2],fmt:t.slice(3).join(" ")}},Z.parseOLine=function(e){let t=Z.matchPrefix(e,"o=")[0].substring(2).split(" ");return{username:t[0],sessionId:t[1],sessionVersion:parseInt(t[2],10),netType:t[3],addressType:t[4],address:t[5]}},Z.isValidSDP=function(e){if("string"!=typeof e||0===e.length)return!1;let t=Z.splitLines(e);for(let e=0;e<t.length;e++)if(t[e].length<2||"="!==t[e].charAt(1))return!1;return!0},q=Z;let ec=function({window:e}={},t={shimChrome:!0,shimFirefox:!0,shimSafari:!0}){let n=function(e){let t={browser:null,version:null};if(void 0===e||!e.navigator||!e.navigator.userAgent)return t.browser="Not a browser.",t;let{navigator:n}=e;if(n.userAgentData&&n.userAgentData.brands){let e=n.userAgentData.brands.find(e=>"Chromium"===e.brand);if(e)return{browser:"chrome",version:parseInt(e.version,10)}}return n.mozGetUserMedia?(t.browser="firefox",t.version=d(n.userAgent,/Firefox\/(\d+)\./,1)):n.webkitGetUserMedia||!1===e.isSecureContext&&e.webkitRTCPeerConnection?(t.browser="chrome",t.version=d(n.userAgent,/Chrom(e|ium)\/(\d+)\./,2)):e.RTCPeerConnection&&n.userAgent.match(/AppleWebKit\/(\d+)\./)?(t.browser="safari",t.version=d(n.userAgent,/AppleWebKit\/(\d+)\./,1),t.supportsUnifiedPlan=e.RTCRtpTransceiver&&"currentDirection"in e.RTCRtpTransceiver.prototype):t.browser="Not a supported browser.",t}(e),r={browserDetails:n,commonShim:Q,extractVersion:d,disableLog:h,disableWarnings:u,sdp:q};switch(n.browser){case"chrome":if(!y||!y.shimPeerConnection||!t.shimChrome){f("Chrome shim is not included in this adapter release.");break}if(null===n.version){f("Chrome shim can not determine version, not shimming.");break}f("adapter.js shimming chrome."),r.browserShim=y,eo(e,n),ea(e,n),y.shimGetUserMedia(e,n),y.shimMediaStream(e,n),y.shimPeerConnection(e,n),y.shimOnTrack(e,n),y.shimAddTrackRemoveTrack(e,n),y.shimGetSendersWithDtmf(e,n),y.shimSenderReceiverGetStats(e,n),y.fixNegotiationNeeded(e,n),ee(e,n),et(e,n),ei(e,n),en(e,n),er(e,n),es(e,n);break;case"firefox":if(!E||!E.shimPeerConnection||!t.shimFirefox){f("Firefox shim is not included in this adapter release.");break}f("adapter.js shimming firefox."),r.browserShim=E,eo(e,n),ea(e,n),E.shimGetUserMedia(e,n),E.shimPeerConnection(e,n),E.shimOnTrack(e,n),E.shimRemoveStream(e,n),E.shimSenderGetStats(e,n),E.shimReceiverGetStats(e,n),E.shimRTCDataChannel(e,n),E.shimAddTransceiver(e,n),E.shimGetParameters(e,n),E.shimCreateOffer(e,n),E.shimCreateAnswer(e,n),ee(e,n),ei(e,n),en(e,n),er(e,n);break;case"safari":if(!z||!t.shimSafari){f("Safari shim is not included in this adapter release.");break}f("adapter.js shimming safari."),r.browserShim=z,eo(e,n),ea(e,n),z.shimRTCIceServerUrls(e,n),z.shimCreateOfferLegacy(e,n),z.shimCallbacksAPI(e,n),z.shimLocalStreamsAPI(e,n),z.shimRemoteStreamsAPI(e,n),z.shimTrackEventTransceiver(e,n),z.shimGetUserMedia(e,n),z.shimAudioContext(e,n),ee(e,n),et(e,n),en(e,n),er(e,n),es(e,n);break;default:f("Unsupported browser!")}return r}({window:"undefined"==typeof window?void 0:window}),ep=ec.default||ec,ed=new class{isWebRTCSupported(){return"undefined"!=typeof RTCPeerConnection}isBrowserSupported(){let e=this.getBrowser(),t=this.getVersion();return!!this.supportedBrowsers.includes(e)&&("chrome"===e?t>=this.minChromeVersion:"firefox"===e?t>=this.minFirefoxVersion:"safari"===e&&!this.isIOS&&t>=this.minSafariVersion)}getBrowser(){return ep.browserDetails.browser}getVersion(){return ep.browserDetails.version||0}isUnifiedPlanSupported(){let e,t=this.getBrowser(),n=ep.browserDetails.version||0;if("chrome"===t&&n<this.minChromeVersion)return!1;if("firefox"===t&&n>=this.minFirefoxVersion)return!0;if(!window.RTCRtpTransceiver||!("currentDirection"in RTCRtpTransceiver.prototype))return!1;let r=!1;try{(e=new RTCPeerConnection).addTransceiver("audio"),r=!0}catch(e){}finally{e&&e.close()}return r}toString(){return`Supports:
-    browser:${this.getBrowser()}
-    version:${this.getVersion()}
-    isIOS:${this.isIOS}
-    isWebRTCSupported:${this.isWebRTCSupported()}
-    isBrowserSupported:${this.isBrowserSupported()}
-    isUnifiedPlanSupported:${this.isUnifiedPlanSupported()}`}constructor(){this.isIOS="undefined"!=typeof navigator&&["iPad","iPhone","iPod"].includes(navigator.platform),this.supportedBrowsers=["firefox","chrome","safari"],this.minFirefoxVersion=59,this.minChromeVersion=72,this.minSafariVersion=605}},el=e=>!e||/^[A-Za-z0-9]+(?:[ _-][A-Za-z0-9]+)*$/.test(e),eh=()=>Math.random().toString(36).slice(2),eu={iceServers:[{urls:"stun:stun.l.google.com:19302"},{urls:["turn:eu-0.turn.peerjs.com:3478","turn:us-0.turn.peerjs.com:3478"],username:"peerjs",credential:"peerjsp"}],sdpSemantics:"unified-plan"},ef=new class extends n{noop(){}blobToArrayBuffer(e,t){let n=new FileReader;return n.onload=function(e){e.target&&t(e.target.result)},n.readAsArrayBuffer(e),n}binaryStringToArrayBuffer(e){let t=new Uint8Array(e.length);for(let n=0;n<e.length;n++)t[n]=255&e.charCodeAt(n);return t.buffer}isSecure(){return"https:"===location.protocol}constructor(...e){super(...e),this.CLOUD_HOST="0.peerjs.com",this.CLOUD_PORT=443,this.chunkedBrowsers={Chrome:1,chrome:1},this.defaultConfig=eu,this.browser=ed.getBrowser(),this.browserVersion=ed.getVersion(),this.pack=s,this.unpack=i,this.supports=function(){let e,t={browser:ed.isBrowserSupported(),webRTC:ed.isWebRTCSupported(),audioVideo:!1,data:!1,binaryBlob:!1,reliable:!1};if(!t.webRTC)return t;try{let n;e=new RTCPeerConnection(eu),t.audioVideo=!0;try{n=e.createDataChannel("_PEERJSTEST",{ordered:!0}),t.data=!0,t.reliable=!!n.ordered;try{n.binaryType="blob",t.binaryBlob=!ed.isIOS}catch(e){}}catch(e){}finally{n&&n.close()}}catch(e){}finally{e&&e.close()}return t}(),this.validateId=el,this.randomToken=eh}};"use strict";var em=new class{get logLevel(){return this._logLevel}set logLevel(e){this._logLevel=e}log(...e){this._logLevel>=3&&this._print(3,...e)}warn(...e){this._logLevel>=2&&this._print(2,...e)}error(...e){this._logLevel>=1&&this._print(1,...e)}setLogFunction(e){this._print=e}_print(e,...t){let n=["PeerJS: ",...t];for(let e in n)n[e]instanceof Error&&(n[e]="("+n[e].name+") "+n[e].message);e>=3?console.log(...n):e>=2?console.warn("WARNING",...n):e>=1&&console.error("ERROR",...n)}constructor(){this._logLevel=0}},e_={},eg=Object.prototype.hasOwnProperty,ey="~";function eC(){}function ev(e,t,n){this.fn=e,this.context=t,this.once=n||!1}function eb(e,t,n,r,i){if("function"!=typeof n)throw TypeError("The listener must be a function");var s=new ev(n,r||e,i),o=ey?ey+t:t;return e._events[o]?e._events[o].fn?e._events[o]=[e._events[o],s]:e._events[o].push(s):(e._events[o]=s,e._eventsCount++),e}function eT(e,t){0==--e._eventsCount?e._events=new eC:delete e._events[t]}function eS(){this._events=new eC,this._eventsCount=0}Object.create&&(eC.prototype=Object.create(null),new eC().__proto__||(ey=!1)),eS.prototype.eventNames=function(){var e,t,n=[];if(0===this._eventsCount)return n;for(t in e=this._events)eg.call(e,t)&&n.push(ey?t.slice(1):t);return Object.getOwnPropertySymbols?n.concat(Object.getOwnPropertySymbols(e)):n},eS.prototype.listeners=function(e){var t=ey?ey+e:e,n=this._events[t];if(!n)return[];if(n.fn)return[n.fn];for(var r=0,i=n.length,s=Array(i);r<i;r++)s[r]=n[r].fn;return s},eS.prototype.listenerCount=function(e){var t=ey?ey+e:e,n=this._events[t];return n?n.fn?1:n.length:0},eS.prototype.emit=function(e,t,n,r,i,s){var o=ey?ey+e:e;if(!this._events[o])return!1;var a,c,p=this._events[o],d=arguments.length;if(p.fn){switch(p.once&&this.removeListener(e,p.fn,void 0,!0),d){case 1:return p.fn.call(p.context),!0;case 2:return p.fn.call(p.context,t),!0;case 3:return p.fn.call(p.context,t,n),!0;case 4:return p.fn.call(p.context,t,n,r),!0;case 5:return p.fn.call(p.context,t,n,r,i),!0;case 6:return p.fn.call(p.context,t,n,r,i,s),!0}for(c=1,a=Array(d-1);c<d;c++)a[c-1]=arguments[c];p.fn.apply(p.context,a)}else{var l,h=p.length;for(c=0;c<h;c++)switch(p[c].once&&this.removeListener(e,p[c].fn,void 0,!0),d){case 1:p[c].fn.call(p[c].context);break;case 2:p[c].fn.call(p[c].context,t);break;case 3:p[c].fn.call(p[c].context,t,n);break;case 4:p[c].fn.call(p[c].context,t,n,r);break;default:if(!a)for(l=1,a=Array(d-1);l<d;l++)a[l-1]=arguments[l];p[c].fn.apply(p[c].context,a)}}return!0},eS.prototype.on=function(e,t,n){return eb(this,e,t,n,!1)},eS.prototype.once=function(e,t,n){return eb(this,e,t,n,!0)},eS.prototype.removeListener=function(e,t,n,r){var i=ey?ey+e:e;if(!this._events[i])return this;if(!t)return eT(this,i),this;var s=this._events[i];if(s.fn)s.fn!==t||r&&!s.once||n&&s.context!==n||eT(this,i);else{for(var o=0,a=[],c=s.length;o<c;o++)(s[o].fn!==t||r&&!s[o].once||n&&s[o].context!==n)&&a.push(s[o]);a.length?this._events[i]=1===a.length?a[0]:a:eT(this,i)}return this},eS.prototype.removeAllListeners=function(e){var t;return e?(t=ey?ey+e:e,this._events[t]&&eT(this,t)):(this._events=new eC,this._eventsCount=0),this},eS.prototype.off=eS.prototype.removeListener,eS.prototype.addListener=eS.prototype.on,eS.prefixed=ey,eS.EventEmitter=eS,e_=eS;var ek=function(e){return e.Data="data",e.Media="media",e}({}),eR=function(e){return e.BrowserIncompatible="browser-incompatible",e.Disconnected="disconnected",e.InvalidID="invalid-id",e.InvalidKey="invalid-key",e.Network="network",e.PeerUnavailable="peer-unavailable",e.SslUnavailable="ssl-unavailable",e.ServerError="server-error",e.SocketError="socket-error",e.SocketClosed="socket-closed",e.UnavailableID="unavailable-id",e.WebRTC="webrtc",e}({}),eP=function(e){return e.NegotiationFailed="negotiation-failed",e.ConnectionClosed="connection-closed",e}({}),ew=function(e){return e.NotOpenYet="not-open-yet",e.MessageToBig="message-too-big",e}({}),eE=function(e){return e.Binary="binary",e.BinaryUTF8="binary-utf8",e.JSON="json",e.None="raw",e}({}),ex=function(e){return e.Message="message",e.Disconnected="disconnected",e.Error="error",e.Close="close",e}({}),eD=function(e){return e.Heartbeat="HEARTBEAT",e.Candidate="CANDIDATE",e.Offer="OFFER",e.Answer="ANSWER",e.Open="OPEN",e.Error="ERROR",e.IdTaken="ID-TAKEN",e.InvalidKey="INVALID-KEY",e.Leave="LEAVE",e.Expire="EXPIRE",e}({});let eI="1.5.5";class eM extends e_.EventEmitter{start(e,t){this._id=e;let n=`${this._baseUrl}&id=${e}&token=${t}`;!this._socket&&this._disconnected&&(this._socket=new WebSocket(n+"&version="+eI),this._disconnected=!1,this._socket.onmessage=e=>{let t;try{t=JSON.parse(e.data),em.log("Server message received:",t)}catch(t){em.log("Invalid server message",e.data);return}this.emit(ex.Message,t)},this._socket.onclose=e=>{this._disconnected||(em.log("Socket closed.",e),this._cleanup(),this._disconnected=!0,this.emit(ex.Disconnected))},this._socket.onopen=()=>{this._disconnected||(this._sendQueuedMessages(),em.log("Socket open"),this._scheduleHeartbeat())})}_scheduleHeartbeat(){this._wsPingTimer=setTimeout(()=>{this._sendHeartbeat()},this.pingInterval)}_sendHeartbeat(){if(!this._wsOpen())return void em.log("Cannot send heartbeat, because socket closed");let e=JSON.stringify({type:eD.Heartbeat});this._socket.send(e),this._scheduleHeartbeat()}_wsOpen(){return!!this._socket&&1===this._socket.readyState}_sendQueuedMessages(){let e=[...this._messagesQueue];for(let t of(this._messagesQueue=[],e))this.send(t)}send(e){if(this._disconnected)return;if(!this._id)return void this._messagesQueue.push(e);if(!e.type)return void this.emit(ex.Error,"Invalid message");if(!this._wsOpen())return;let t=JSON.stringify(e);this._socket.send(t)}close(){this._disconnected||(this._cleanup(),this._disconnected=!0)}_cleanup(){this._socket&&(this._socket.onopen=this._socket.onmessage=this._socket.onclose=null,this._socket.close(),this._socket=void 0),clearTimeout(this._wsPingTimer)}constructor(e,t,n,r,i,s=5e3){super(),this.pingInterval=s,this._disconnected=!0,this._messagesQueue=[],this._baseUrl=(e?"wss://":"ws://")+t+":"+n+r+"peerjs?key="+i}}class eO{startConnection(e){let t=this._startPeerConnection();if(this.connection.peerConnection=t,this.connection.type===ek.Media&&e._stream&&this._addTracksToConnection(e._stream,t),e.originator){let n=this.connection,r={ordered:!!e.reliable},i=t.createDataChannel(n.label,r);n._initializeDataChannel(i),this._makeOffer()}else this.handleSDP("OFFER",e.sdp)}_startPeerConnection(){em.log("Creating RTCPeerConnection.");let e=new RTCPeerConnection(this.connection.provider.options.config);return this._setupListeners(e),e}_setupListeners(e){let t=this.connection.peer,n=this.connection.connectionId,r=this.connection.type,i=this.connection.provider;em.log("Listening for ICE candidates."),e.onicecandidate=e=>{e.candidate&&e.candidate.candidate&&(em.log(`Received ICE candidates for ${t}:`,e.candidate),i.socket.send({type:eD.Candidate,payload:{candidate:e.candidate,type:r,connectionId:n},dst:t}))},e.oniceconnectionstatechange=()=>{switch(e.iceConnectionState){case"failed":em.log("iceConnectionState is failed, closing connections to "+t),this.connection.emitError(eP.NegotiationFailed,"Negotiation of connection to "+t+" failed."),this.connection.close();break;case"closed":em.log("iceConnectionState is closed, closing connections to "+t),this.connection.emitError(eP.ConnectionClosed,"Connection to "+t+" closed."),this.connection.close();break;case"disconnected":em.log("iceConnectionState changed to disconnected on the connection with "+t);break;case"completed":e.onicecandidate=()=>{}}this.connection.emit("iceStateChanged",e.iceConnectionState)},em.log("Listening for data channel"),e.ondatachannel=e=>{em.log("Received data channel");let r=e.channel;i.getConnection(t,n)._initializeDataChannel(r)},em.log("Listening for remote stream"),e.ontrack=e=>{em.log("Received remote stream");let r=e.streams[0],s=i.getConnection(t,n);s.type===ek.Media&&this._addStreamToMediaConnection(r,s)}}cleanup(){em.log("Cleaning up PeerConnection to "+this.connection.peer);let e=this.connection.peerConnection;if(!e)return;this.connection.peerConnection=null,e.onicecandidate=e.oniceconnectionstatechange=e.ondatachannel=e.ontrack=()=>{};let t="closed"!==e.signalingState,n=!1,r=this.connection.dataChannel;r&&(n=!!r.readyState&&"closed"!==r.readyState),(t||n)&&e.close()}async _makeOffer(){let e=this.connection.peerConnection,t=this.connection.provider;try{let n=await e.createOffer(this.connection.options.constraints);em.log("Created offer."),this.connection.options.sdpTransform&&"function"==typeof this.connection.options.sdpTransform&&(n.sdp=this.connection.options.sdpTransform(n.sdp)||n.sdp);try{await e.setLocalDescription(n),em.log("Set localDescription:",n,`for:${this.connection.peer}`);let r={sdp:n,type:this.connection.type,connectionId:this.connection.connectionId,metadata:this.connection.metadata};if(this.connection.type===ek.Data){let e=this.connection;r={...r,label:e.label,reliable:e.reliable,serialization:e.serialization}}t.socket.send({type:eD.Offer,payload:r,dst:this.connection.peer})}catch(e){"OperationError: Failed to set local offer sdp: Called in wrong state: kHaveRemoteOffer"!=e&&(t.emitError(eR.WebRTC,e),em.log("Failed to setLocalDescription, ",e))}}catch(e){t.emitError(eR.WebRTC,e),em.log("Failed to createOffer, ",e)}}async _makeAnswer(){let e=this.connection.peerConnection,t=this.connection.provider;try{let n=await e.createAnswer();em.log("Created answer."),this.connection.options.sdpTransform&&"function"==typeof this.connection.options.sdpTransform&&(n.sdp=this.connection.options.sdpTransform(n.sdp)||n.sdp);try{await e.setLocalDescription(n),em.log("Set localDescription:",n,`for:${this.connection.peer}`),t.socket.send({type:eD.Answer,payload:{sdp:n,type:this.connection.type,connectionId:this.connection.connectionId},dst:this.connection.peer})}catch(e){t.emitError(eR.WebRTC,e),em.log("Failed to setLocalDescription, ",e)}}catch(e){t.emitError(eR.WebRTC,e),em.log("Failed to create answer, ",e)}}async handleSDP(e,t){t=new RTCSessionDescription(t);let n=this.connection.peerConnection,r=this.connection.provider;em.log("Setting remote description",t);try{await n.setRemoteDescription(t),em.log(`Set remoteDescription:${e} for:${this.connection.peer}`),"OFFER"===e&&await this._makeAnswer()}catch(e){r.emitError(eR.WebRTC,e),em.log("Failed to setRemoteDescription, ",e)}}async handleCandidate(e){em.log("handleCandidate:",e);try{await this.connection.peerConnection.addIceCandidate(e),em.log(`Added ICE candidate for:${this.connection.peer}`)}catch(e){this.connection.provider.emitError(eR.WebRTC,e),em.log("Failed to handleCandidate, ",e)}}_addTracksToConnection(e,t){if(em.log(`add tracks from stream ${e.id} to peer connection`),!t.addTrack)return em.error("Your browser does't support RTCPeerConnection#addTrack. Ignored.");e.getTracks().forEach(n=>{t.addTrack(n,e)})}_addStreamToMediaConnection(e,t){em.log(`add stream ${e.id} to media connection ${t.connectionId}`),t.addStream(e)}constructor(e){this.connection=e}}class eL extends e_.EventEmitter{emitError(e,t){em.error("Error:",t),this.emit("error",new eA(`${e}`,t))}}class eA extends Error{constructor(e,t){"string"==typeof t?super(t):(super(),Object.assign(this,t)),this.type=e}}class ej extends eL{get open(){return this._open}constructor(e,t,n){super(),this.peer=e,this.provider=t,this.options=n,this._open=!1,this.metadata=n.metadata}}class eB extends ej{get type(){return ek.Media}get localStream(){return this._localStream}get remoteStream(){return this._remoteStream}_initializeDataChannel(e){this.dataChannel=e,this.dataChannel.onopen=()=>{em.log(`DC#${this.connectionId} dc connection success`),this.emit("willCloseOnRemote")},this.dataChannel.onclose=()=>{em.log(`DC#${this.connectionId} dc closed for:`,this.peer),this.close()}}addStream(e){em.log("Receiving stream",e),this._remoteStream=e,super.emit("stream",e)}handleMessage(e){let t=e.type,n=e.payload;switch(e.type){case eD.Answer:this._negotiator.handleSDP(t,n.sdp),this._open=!0;break;case eD.Candidate:this._negotiator.handleCandidate(n.candidate);break;default:em.warn(`Unrecognized message type:${t} from peer:${this.peer}`)}}answer(e,t={}){if(this._localStream)return void em.warn("Local stream already exists on this MediaConnection. Are you answering a call twice?");for(let n of(this._localStream=e,t&&t.sdpTransform&&(this.options.sdpTransform=t.sdpTransform),this._negotiator.startConnection({...this.options._payload,_stream:e}),this.provider._getMessages(this.connectionId)))this.handleMessage(n);this._open=!0}close(){this._negotiator&&(this._negotiator.cleanup(),this._negotiator=null),this._localStream=null,this._remoteStream=null,this.provider&&(this.provider._removeConnection(this),this.provider=null),this.options&&this.options._stream&&(this.options._stream=null),this.open&&(this._open=!1,super.emit("close"))}constructor(e,t,n){super(e,t,n),this._localStream=this.options._stream,this.connectionId=this.options.connectionId||eB.ID_PREFIX+ef.randomToken(),this._negotiator=new eO(this),this._localStream&&this._negotiator.startConnection({_stream:this._localStream,originator:!0})}}eB.ID_PREFIX="mc_";class eU{_buildRequest(e){let t=this._options.secure?"https":"http",{host:n,port:r,path:i,key:s}=this._options,o=new URL(`${t}://${n}:${r}${i}${s}/${e}`);return o.searchParams.set("ts",`${Date.now()}${Math.random()}`),o.searchParams.set("version",eI),fetch(o.href,{referrerPolicy:this._options.referrerPolicy})}async retrieveId(){try{let e=await this._buildRequest("id");if(200!==e.status)throw Error(`Error. Status:${e.status}`);return e.text()}catch(t){em.error("Error retrieving ID",t);let e="";throw"/"===this._options.path&&this._options.host!==ef.CLOUD_HOST&&(e=" If you passed in a `path` to your self-hosted PeerServer, you'll also need to pass in that same path when creating a new Peer."),Error("Could not get an ID from the server."+e)}}async listAllPeers(){try{let e=await this._buildRequest("peers");if(200!==e.status){if(401===e.status){let e="";throw e=this._options.host===ef.CLOUD_HOST?"It looks like you're using the cloud server. You can email team@peerjs.com to enable peer listing for your API key.":"You need to enable `allow_discovery` on your self-hosted PeerServer to use this feature.",Error("It doesn't look like you have permission to list peers IDs. "+e)}throw Error(`Error. Status:${e.status}`)}return e.json()}catch(e){throw em.error("Error retrieving list peers",e),Error("Could not get list peers from the server."+e)}}constructor(e){this._options=e}}class eF extends ej{get type(){return ek.Data}_initializeDataChannel(e){this.dataChannel=e,this.dataChannel.onopen=()=>{em.log(`DC#${this.connectionId} dc connection success`),this._open=!0,this.emit("open")},this.dataChannel.onmessage=e=>{em.log(`DC#${this.connectionId} dc onmessage:`,e.data)},this.dataChannel.onclose=()=>{em.log(`DC#${this.connectionId} dc closed for:`,this.peer),this.close()}}close(e){if(e?.flush)return void this.send({__peerData:{type:"close"}});this._negotiator&&(this._negotiator.cleanup(),this._negotiator=null),this.provider&&(this.provider._removeConnection(this),this.provider=null),this.dataChannel&&(this.dataChannel.onopen=null,this.dataChannel.onmessage=null,this.dataChannel.onclose=null,this.dataChannel=null),this.open&&(this._open=!1,super.emit("close"))}send(e,t=!1){return this.open?this._send(e,t):void this.emitError(ew.NotOpenYet,"Connection is not open. You should listen for the `open` event before sending messages.")}async handleMessage(e){let t=e.payload;switch(e.type){case eD.Answer:await this._negotiator.handleSDP(e.type,t.sdp);break;case eD.Candidate:await this._negotiator.handleCandidate(t.candidate);break;default:em.warn("Unrecognized message type:",e.type,"from peer:",this.peer)}}constructor(e,t,n){super(e,t,n),this.connectionId=this.options.connectionId||eF.ID_PREFIX+eh(),this.label=this.options.label||this.connectionId,this.reliable=!!this.options.reliable,this._negotiator=new eO(this),this._negotiator.startConnection(this.options._payload||{originator:!0,reliable:this.reliable})}}eF.ID_PREFIX="dc_",eF.MAX_BUFFERED_AMOUNT=8388608;class eN extends eF{get bufferSize(){return this._bufferSize}_initializeDataChannel(e){super._initializeDataChannel(e),this.dataChannel.binaryType="arraybuffer",this.dataChannel.addEventListener("message",e=>this._handleDataMessage(e))}_bufferedSend(e){(this._buffering||!this._trySend(e))&&(this._buffer.push(e),this._bufferSize=this._buffer.length)}_trySend(e){if(!this.open)return!1;if(this.dataChannel.bufferedAmount>eF.MAX_BUFFERED_AMOUNT)return this._buffering=!0,setTimeout(()=>{this._buffering=!1,this._tryBuffer()},50),!1;try{this.dataChannel.send(e)}catch(e){return em.error(`DC#:${this.connectionId} Error when sending:`,e),this._buffering=!0,this.close(),!1}return!0}_tryBuffer(){if(!this.open||0===this._buffer.length)return;let e=this._buffer[0];this._trySend(e)&&(this._buffer.shift(),this._bufferSize=this._buffer.length,this._tryBuffer())}close(e){if(e?.flush)return void this.send({__peerData:{type:"close"}});this._buffer=[],this._bufferSize=0,super.close()}constructor(...e){super(...e),this._buffer=[],this._bufferSize=0,this._buffering=!1}}class ez extends eN{close(e){super.close(e),this._chunkedData={}}_handleDataMessage({data:e}){let t=i(e),n=t.__peerData;if(n)return"close"===n.type?void this.close():void this._handleChunk(t);this.emit("data",t)}_handleChunk(e){let t=e.__peerData,n=this._chunkedData[t]||{data:[],count:0,total:e.total};if(n.data[e.n]=new Uint8Array(e.data),n.count++,this._chunkedData[t]=n,n.total===n.count){delete this._chunkedData[t];let e=function(e){let t=0;for(let n of e)t+=n.byteLength;let n=new Uint8Array(t),r=0;for(let t of e)n.set(t,r),r+=t.byteLength;return n}(n.data);this._handleDataMessage({data:e})}}_send(e,t){let n=s(e);return n instanceof Promise?this._send_blob(n):!t&&n.byteLength>this.chunker.chunkedMTU?void this._sendChunks(n):void this._bufferedSend(n)}async _send_blob(e){let t=await e;if(t.byteLength>this.chunker.chunkedMTU)return void this._sendChunks(t);this._bufferedSend(t)}_sendChunks(e){let t=this.chunker.chunk(e);for(let e of(em.log(`DC#${this.connectionId} Try to send ${t.length} chunks...`),t))this.send(e,!0)}constructor(e,t,r){super(e,t,r),this.chunker=new n,this.serialization=eE.Binary,this._chunkedData={}}}class e$ extends eN{_handleDataMessage({data:e}){super.emit("data",e)}_send(e,t){this._bufferedSend(e)}constructor(...e){super(...e),this.serialization=eE.None}}class eV extends eN{_handleDataMessage({data:e}){let t=this.parse(this.decoder.decode(e)),n=t.__peerData;if(n&&"close"===n.type)return void this.close();this.emit("data",t)}_send(e,t){let n=this.encoder.encode(this.stringify(e));if(n.byteLength>=ef.chunkedMTU)return void this.emitError(ew.MessageToBig,"Message too big for JSON channel");this._bufferedSend(n)}constructor(...e){super(...e),this.serialization=eE.JSON,this.encoder=new TextEncoder,this.decoder=new TextDecoder,this.stringify=JSON.stringify,this.parse=JSON.parse}}class eG extends eL{get id(){return this._id}get options(){return this._options}get open(){return this._open}get socket(){return this._socket}get connections(){let e=Object.create(null);for(let[t,n]of this._connections)e[t]=n;return e}get destroyed(){return this._destroyed}get disconnected(){return this._disconnected}_createServerConnection(){let e=new eM(this._options.secure,this._options.host,this._options.port,this._options.path,this._options.key,this._options.pingInterval);return e.on(ex.Message,e=>{this._handleMessage(e)}),e.on(ex.Error,e=>{this._abort(eR.SocketError,e)}),e.on(ex.Disconnected,()=>{this.disconnected||(this.emitError(eR.Network,"Lost connection to server."),this.disconnect())}),e.on(ex.Close,()=>{this.disconnected||this._abort(eR.SocketClosed,"Underlying socket is already closed.")}),e}_initialize(e){this._id=e,this.socket.start(e,this._options.token)}_handleMessage(e){let t=e.type,n=e.payload,r=e.src;switch(t){case eD.Open:this._lastServerId=this.id,this._open=!0,this.emit("open",this.id);break;case eD.Error:this._abort(eR.ServerError,n.msg);break;case eD.IdTaken:this._abort(eR.UnavailableID,`ID "${this.id}" is taken`);break;case eD.InvalidKey:this._abort(eR.InvalidKey,`API KEY "${this._options.key}" is invalid`);break;case eD.Leave:em.log(`Received leave message from ${r}`),this._cleanupPeer(r),this._connections.delete(r);break;case eD.Expire:this.emitError(eR.PeerUnavailable,`Could not connect to peer ${r}`);break;case eD.Offer:{let e=n.connectionId,t=this.getConnection(r,e);if(t&&(t.close(),em.warn(`Offer received for existing Connection ID:${e}`)),n.type===ek.Media){let i=new eB(r,this,{connectionId:e,_payload:n,metadata:n.metadata});t=i,this._addConnection(r,t),this.emit("call",i)}else{if(n.type!==ek.Data)return void em.warn(`Received malformed connection type:${n.type}`);let i=new this._serializers[n.serialization](r,this,{connectionId:e,_payload:n,metadata:n.metadata,label:n.label,serialization:n.serialization,reliable:n.reliable});t=i,this._addConnection(r,t),this.emit("connection",i)}for(let n of this._getMessages(e))t.handleMessage(n);break}default:{if(!n)return void em.warn(`You received a malformed message from ${r} of type ${t}`);let i=n.connectionId,s=this.getConnection(r,i);s&&s.peerConnection?s.handleMessage(e):i?this._storeMessage(i,e):em.warn("You received an unrecognized message:",e)}}}_storeMessage(e,t){this._lostMessages.has(e)||this._lostMessages.set(e,[]),this._lostMessages.get(e).push(t)}_getMessages(e){let t=this._lostMessages.get(e);return t?(this._lostMessages.delete(e),t):[]}connect(e,t={}){if(t={serialization:"default",...t},this.disconnected){em.warn("You cannot connect to a new Peer because you called .disconnect() on this Peer and ended your connection with the server. You can create a new Peer to reconnect, or call reconnect on this peer if you believe its ID to still be available."),this.emitError(eR.Disconnected,"Cannot connect to new Peer after disconnecting from server.");return}let n=new this._serializers[t.serialization](e,this,t);return this._addConnection(e,n),n}call(e,t,n={}){if(this.disconnected){em.warn("You cannot connect to a new Peer because you called .disconnect() on this Peer and ended your connection with the server. You can create a new Peer to reconnect."),this.emitError(eR.Disconnected,"Cannot connect to new Peer after disconnecting from server.");return}if(!t)return void em.error("To call a peer, you must provide a stream from your browser's `getUserMedia`.");let r=new eB(e,this,{...n,_stream:t});return this._addConnection(e,r),r}_addConnection(e,t){em.log(`add connection ${t.type}:${t.connectionId} to peerId:${e}`),this._connections.has(e)||this._connections.set(e,[]),this._connections.get(e).push(t)}_removeConnection(e){let t=this._connections.get(e.peer);if(t){let n=t.indexOf(e);-1!==n&&t.splice(n,1)}this._lostMessages.delete(e.connectionId)}getConnection(e,t){let n=this._connections.get(e);if(!n)return null;for(let e of n)if(e.connectionId===t)return e;return null}_delayedAbort(e,t){setTimeout(()=>{this._abort(e,t)},0)}_abort(e,t){em.error("Aborting!"),this.emitError(e,t),this._lastServerId?this.disconnect():this.destroy()}destroy(){this.destroyed||(em.log(`Destroy peer with ID:${this.id}`),this.disconnect(),this._cleanup(),this._destroyed=!0,this.emit("close"))}_cleanup(){for(let e of this._connections.keys())this._cleanupPeer(e),this._connections.delete(e);this.socket.removeAllListeners()}_cleanupPeer(e){let t=this._connections.get(e);if(t)for(let e of t)e.close()}disconnect(){if(this.disconnected)return;let e=this.id;em.log(`Disconnect peer with ID:${e}`),this._disconnected=!0,this._open=!1,this.socket.close(),this._lastServerId=e,this._id=null,this.emit("disconnected",e)}reconnect(){if(this.disconnected&&!this.destroyed)em.log(`Attempting reconnection to server with ID ${this._lastServerId}`),this._disconnected=!1,this._initialize(this._lastServerId);else if(this.destroyed)throw Error("This peer cannot reconnect to the server. It has already been destroyed.");else if(this.disconnected||this.open)throw Error(`Peer ${this.id} cannot reconnect because it is not disconnected from the server!`);else em.error("In a hurry? We're still trying to make the initial connection!")}listAllPeers(e=e=>{}){this._api.listAllPeers().then(t=>e(t)).catch(e=>this._abort(eR.ServerError,e))}constructor(e,t){let n;if(super(),this._serializers={raw:e$,json:eV,binary:ez,"binary-utf8":ez,default:ez},this._id=null,this._lastServerId=null,this._destroyed=!1,this._disconnected=!1,this._open=!1,this._connections=new Map,this._lostMessages=new Map,e&&e.constructor==Object?t=e:e&&(n=e.toString()),t={debug:0,host:ef.CLOUD_HOST,port:ef.CLOUD_PORT,path:"/",key:eG.DEFAULT_KEY,token:ef.randomToken(),config:ef.defaultConfig,referrerPolicy:"strict-origin-when-cross-origin",serializers:{},...t},this._options=t,this._serializers={...this._serializers,...this.options.serializers},"/"===this._options.host&&(this._options.host=window.location.hostname),this._options.path&&("/"!==this._options.path[0]&&(this._options.path="/"+this._options.path),"/"!==this._options.path[this._options.path.length-1]&&(this._options.path+="/")),void 0===this._options.secure&&this._options.host!==ef.CLOUD_HOST?this._options.secure=ef.isSecure():this._options.host==ef.CLOUD_HOST&&(this._options.secure=!0),this._options.logFunction&&em.setLogFunction(this._options.logFunction),em.logLevel=this._options.debug||0,this._api=new eU(t),this._socket=this._createServerConnection(),!ef.supports.audioVideo&&!ef.supports.data)return void this._delayedAbort(eR.BrowserIncompatible,"The current browser does not support WebRTC");if(n&&!ef.validateId(n))return void this._delayedAbort(eR.InvalidID,`ID "${n}" is invalid`);n?this._initialize(n):this._api.retrieveId().then(e=>this._initialize(e)).catch(e=>this._abort(eR.ServerError,e))}}eG.DEFAULT_KEY="peerjs",window.peerjs={Peer:eG,util:ef},window.Peer=eG})();
-</script>
 <script>
 'use strict';
 const PREFIX = 'racia-v1-';
-const VERSION = '6 · 11.10.2026';
+const VERSION = '7 · 12.10.2026';
 const HOME = 'https://eshipptv-sys.github.io/lost/';
 const MODEL = { key:'ru-small-0.22', file:'vosk/vosk-model-small-ru-0.22.tar.gz', bytes:46236562, mb:44 };
 const ASSET = p => new URL(p, isWeb() ? location.href : HOME).href;
 const $ = id => document.getElementById(id);
-const S = { mode:null, role:null, state:'idle', peer:null, call:null, pc:null, code:null,
+const S = { mode:null, role:null, state:'idle', pc:null, code:null,
   localStream:null, remoteStream:null, localMeter:null, remoteMeter:null, muted:false,
   ac:null, wake:null, t0:0, tick:0, statsTimer:0, joinTimer:0, discTimer:0, prevIn:null };
 const watched = new WeakSet();
@@ -399,19 +405,21 @@ function rnd(n, abc){
 /* ---------- состояния ---------- */
 function toIdle(msg, kind){
   S.state = 'idle'; show('vStart'); setLed(kind === 'err' ? 'err' : 'off');
-  setChan('— — —');
+  setChan('— — —'); $('cnt').textContent = '';
   setStatus(msg || 'Создайте канал или введите код друга', kind);
   resetManual(); setBars(0); $('route').textContent = ''; $('timer').textContent = '00:00';
+  renderPeers();
 }
 function toWaiting(){
-  S.state = 'waiting'; clearTimeout(S.joinTimer); show('vWait'); setLed('wait');
+  S.state = 'waiting'; show('vWait'); setLed('wait');
   setChan(fmt(S.code));
   $('shareRow').hidden = false; $('invite').hidden = false;
   $('linkTxt').textContent = inviteLink();
   $('btnShare').hidden = !navigator.share;
   $('btnCopy').classList.toggle('primary', !navigator.share);
-  igniteText($('waitText'), 'Отправьте другу ссылку и сразу вернитесь на эту страницу. Пока она свёрнута, телефон её усыпляет, и друг не сможет подключиться.', 35);
-  setStatus('Канал открыт. Ждём друга…');
+  igniteText($('waitText'), 'Отправьте ссылку друзьям и сразу вернитесь на эту страницу: пока она свёрнута, телефон её усыпляет. В канале может быть до ' + MAX_PEOPLE + ' человек.', 35);
+  setStatus('Канал открыт. Ждём друзей…');
+  roomCount();
 }
 function toConnecting(status, hint){
   S.state = 'connecting'; show('vWait'); setLed('wait');
@@ -420,12 +428,13 @@ function toConnecting(status, hint){
   setStatus(status);
 }
 function toCall(){
-  S.state = 'incall'; clearTimeout(S.joinTimer);
+  S.state = 'incall';
   show('vCall'); setLed('on'); setStatus('На связи', 'ok');
-  if (S.mode === 'manual'){ $('manual').open = false; }
+  if (S.mode === 'manual'){ $('manual').open = false; renderPeers(); }
   capClear(); cap.line = 0; cap.pending = ''; capSync();
   S.t0 = Date.now(); clearInterval(S.tick); S.tick = setInterval(updTimer, 1000); updTimer();
-  S.prevIn = null; clearInterval(S.statsTimer); S.statsTimer = setInterval(pollStats, 2000); pollStats();
+  S.prevIn = null; clearInterval(S.statsTimer);
+  if (S.mode === 'manual'){ S.statsTimer = setInterval(pollStats, 2000); pollStats(); }
   grabWake();
 }
 
@@ -433,18 +442,12 @@ function toCall(){
 function endCall(){
   capStop();
   clearInterval(S.tick); clearInterval(S.statsTimer); clearTimeout(S.discTimer);
-  const call = S.call, pc = S.pc; S.call = null; S.pc = null;
-  if (call){
-    const c = ctls.get(call.peer); ctls.delete(call.peer);
-    if (c) byePeer(c);
-    try{ call.close(); }catch(e){}
-  }
+  const pc = S.pc; S.pc = null;
   if (pc){
     const dc = dcs.get(pc); let sent = false;
     if (dc && dc.readyState === 'open'){ try{ dc.send('bye'); sent = true; }catch(e){} }
     setTimeout(() => { try{ pc.close(); }catch(e){} }, sent ? 300 : 0);
   }
-  relayResetPeer();
   S.remoteStream = null; $('remote').srcObject = null;
   if (S.remoteMeter) S.remoteMeter.disconnect(); S.remoteMeter = null;
   $('btnSound').hidden = true;
@@ -452,32 +455,15 @@ function endCall(){
   $('timer').textContent = '00:00'; $('route').textContent = ''; setBars(0);
 }
 function stopAll(){
-  endCall(); clearTimeout(S.joinTimer); clearTimeout(S.retryT); S.retryCall = null;
-  relayStop();
-  const p = S.peer; S.peer = null; ctls.clear();
-  if (p) setTimeout(() => { try{ p.destroy(); }catch(e){} }, 350);
-  stopMic(); S.mode = null; S.role = null; S.code = null;
+  endCall(); clearTimeout(S.joinTimer);
+  roomStop();
+  stopMic(); S.mode = null; S.code = null;
 }
+/* обрыв в режиме «без сервера» (двое, обмен кодами) */
 function remoteGone(kind){
-  /* после перехода на сервер сбои прямого канала больше не важны */
-  if (onRelay() && kind !== 'left' && kind !== 'relay-lost') return;
-  /* прямой канал не прошёл или оборвался, а связь через сервер есть — переключаемся */
-  if (kind !== 'left' && S.mode === 'peer' && R.established && !onRelay()){ enterRelay(true); return; }
-  /* прямой канал не прошёл, сервер ещё ищет друга — ждём, не сдаёмся */
-  if (kind !== 'left' && S.mode === 'peer' && S.state !== 'incall' && relayAlive() && !R.established){
-    p2pDrop();
-    if (S.role === 'guest') setStatus('Прямая связь не проходит. Соединяемся через сервер…', 'warn');
-    return;
-  }
   const was = S.state === 'incall';
-  let msg;
-  if (kind === 'left') msg = S.role === 'host' ? 'Друг отключился' : 'Друг завершил связь';
-  else if (was) msg = 'Связь потеряна';
-  else msg = 'Не удалось соединиться: сеть не пропускает голос. Попробуйте «Связь без сервера» или свой TURN-сервер в настройках';
-  if (S.mode === 'peer' && S.role === 'host' && ((S.peer && !S.peer.destroyed) || R.active)){
-    endCall(); toWaiting(); setStatus(msg + '. Канал открыт — друг может подключиться снова.', 'warn');
-    return;
-  }
+  const msg = kind === 'left' ? 'Друг завершил связь' : was ? 'Связь потеряна'
+    : 'Не удалось соединиться: сеть не пропускает прямую связь. Используйте обычный канал по коду.';
   stopAll(); toIdle(msg, (was || kind === 'left') ? 'warn' : 'err');
 }
 
@@ -543,12 +529,12 @@ async function switchMic(id){
     const c = micConstraints(); c.audio.deviceId = {exact:id};
     const ns = await navigator.mediaDevices.getUserMedia(c);
     const nt = ns.getAudioTracks()[0];
-    for (const pc of new Set([currentPC(), UP.pc].filter(Boolean)))
+    for (const pc of [currentPC(), ...roomPeers().map(m => m.up && m.up.pc)].filter(Boolean))
       for (const s of pc.getSenders()) if (s.track && s.track.kind === 'audio') await s.replaceTrack(nt);
     S.localStream.getTracks().forEach(t => t.stop());
     if (S.localMeter) S.localMeter.disconnect();
     S.localStream = ns; S.localMeter = makeMeter(ns);
-    if (R.tx) txStart();
+    if (RM.tx) txStart();
     voskDetach();
     if (cap.rec){ const r = cap.rec; cap.rec = null; try{ r.abort(); }catch(e){} }
     applyMute();
@@ -574,21 +560,30 @@ function makeMeter(stream){
     };
   }catch(e){ return null; }
 }
-const lv = {me:0, friend:0};
-(function loop(){
-  const a = S.localMeter ? S.localMeter.read() : 0, b = S.remoteMeter ? S.remoteMeter.read() : 0;
-  lv.me = a > lv.me ? a : lv.me*0.86; lv.friend = b > lv.friend ? b : lv.friend*0.86;
+const lv = {me:0, friend:0, man:0};
+function meterLoop(){
+  const a = S.localMeter ? S.localMeter.read() : 0;
+  lv.me = a > lv.me ? a : lv.me * 0.86;
   $('mMe').style.setProperty('--l', lv.me.toFixed(3));
-  $('mFriend').style.setProperty('--l', lv.friend.toFixed(3));
-  requestAnimationFrame(loop);
-})();
+  let fr = 0;
+  for (const m of RM.members.values()){
+    const r = m.up && m.up.el && m.up.meter ? m.up.meter.read() : m.player ? m.player.read() : 0;
+    m.lv = r > m.lv ? r : m.lv * 0.86;
+    const el = document.getElementById('mv-' + m.pid); if (el) el.style.setProperty('--l', m.lv.toFixed(3));
+    fr = Math.max(fr, m.lv);
+  }
+  if (S.mode === 'manual'){
+    const r = S.remoteMeter ? S.remoteMeter.read() : 0;
+    lv.man = r > lv.man ? r : lv.man * 0.86;
+    const el = document.getElementById('mv-manual'); if (el) el.style.setProperty('--l', lv.man.toFixed(3));
+    fr = lv.man;
+  }
+  lv.friend = fr;
+  requestAnimationFrame(meterLoop);
+}
 
 /* ---------- звук друга и состояние соединения ---------- */
-function currentPC(){
-  if (S.mode === 'manual') return S.pc;
-  if (S.call) return S.call.peerConnection;
-  return R.mode === 'up' ? UP.pc : null;
-}
+function currentPC(){ return S.mode === 'manual' ? S.pc : null; }
 function useRemote(stream, pc){
   if (!stream || S.remoteStream === stream) return;
   S.remoteStream = stream;
@@ -609,7 +604,6 @@ function watchPC(pc){
     const st = linkState(pc);
     if (st === 'connected'){
       clearTimeout(S.discTimer); S.discTimer = 0;
-      if (S.mode === 'peer' && R.established && R.mode === 'none'){ R.mode = 'p2p'; relaySendCtl({t:'mode', m:'p2p'}); }
       if (S.state !== 'incall') toCall(); else setStatus('На связи', 'ok');
     } else if (st === 'disconnected'){
       if (S.state === 'incall') setStatus('Связь прерывается…', 'warn');
@@ -647,40 +641,8 @@ async function pollStats(){
   setBars(n);
 }
 
-/* ---------- связь по коду (PeerJS) ---------- */
-const PEER_ERR = {
-  'peer-unavailable':'Канал не найден. Проверьте код или попросите друга создать канал заново.',
-  'network':'Нет связи с сервером соединения. Проверьте интернет или используйте «Связь без сервера».',
-  'socket-error':'Нет связи с сервером соединения. Проверьте интернет или используйте «Связь без сервера».',
-  'socket-closed':'Сервер соединения отключился. Попробуйте ещё раз или используйте «Связь без сервера».',
-  'server-error':'Сервер соединения недоступен. Используйте «Связь без сервера» ниже.',
-  'browser-incompatible':'Браузер не поддерживает голосовую связь. Откройте программу в Chrome, Яндекс Браузере, Edge или Firefox.',
-  'unavailable-id':'Не удалось занять код канала. Нажмите «Создать канал» ещё раз.',
-  'webrtc':'Ошибка соединения. Попробуйте ещё раз.'
-};
-function serverOpts(){
-  const v = pref('server').trim(); if (!v) return {};
-  try{
-    const u = new URL(/^[a-z]+:\/\//i.test(v) ? v : 'https://' + v);
-    return {host:u.hostname, port:+u.port || (u.protocol === 'http:' ? 80 : 443), path:u.pathname || '/', secure:u.protocol !== 'http:'};
-  }catch(e){ return {}; }
-}
-function makePeer(id){
-  return new Peer(id, Object.assign({debug:0, config:{iceServers:iceServers(), sdpSemantics:'unified-plan'}}, serverOpts()));
-}
-/* служебный канал: мгновенно сообщает, что собеседник положил трубку */
-const ctls = new Map(), dcs = new WeakMap();
-function wirePeerCtl(conn){
-  ctls.set(conn.peer, conn);
-  const mine = () => S.call && S.call.peer === conn.peer && ctls.get(conn.peer) === conn;
-  conn.on('data', d => { if (!mine()) return; if (d === 'bye') remoteGone('left'); else if (d && d.t === 'cap') capRecv(d); });
-  conn.on('close', () => { if (S.state === 'incall' && mine()) remoteGone('left'); });
-  conn.on('error', () => {});
-}
-function byePeer(conn){
-  try{ if (conn.open) conn.send('bye'); }catch(e){}
-  setTimeout(() => { try{ conn.close(); }catch(e){} }, 300);
-}
+/* служебный канал режима «без сервера»: мгновенно сообщает, что собеседник положил трубку */
+const dcs = new WeakMap();
 function wireDc(pc, ch){
   dcs.set(pc, ch);
   ch.onmessage = e => {
@@ -690,111 +652,8 @@ function wireDc(pc, ch){
   };
   ch.onclose = () => { if (pc === S.pc && S.state === 'incall') remoteGone('left'); };
 }
-function peerError(peer, err){
-  if (S.peer !== peer) return;
-  /* разговор уже идёт — запоздалые ошибки сервера поиска его не касаются */
-  if (S.state === 'incall' || onRelay()) return;
-  const down = ['network','socket-error','socket-closed','server-error','disconnected'].includes(err.type);
-  if (S.state === 'incall' && down) return;
-  /* сервер прямой связи недоступен, но работает связь через сервер-ретранслятор */
-  if ((down || err.type === 'browser-incompatible' || err.type === 'webrtc' || err.type === 'unavailable-id') && relayAlive()){
-    S.peer = null; try{ peer.destroy(); }catch(e){}
-    if (S.role === 'host' && S.state === 'connecting' && relayUp()) toWaiting();
-    return;
-  }
-  if (err.type === 'peer-unavailable' && S.role === 'guest' && S.state !== 'incall'){
-    p2pDrop();
-    setStatus('Ищем друга… Страница Рации у него должна быть открыта, а не свёрнута.');
-    clearTimeout(S.retryT); S.retryT = setTimeout(() => { if (S.retryCall) S.retryCall(); }, 5000);
-    return;
-  }
-  stopAll(); toIdle(PEER_ERR[err.type] || ('Ошибка: ' + (err.message || err.type)), 'err');
-}
-function attachCall(call){
-  S.call = call;
-  call.on('stream', st => { if (S.call === call) useRemote(st, call.peerConnection); });
-  call.on('close', () => {
-    if (S.call !== call) return;
-    if (R.established) setTimeout(() => { if (S.call === call && !onRelay()) remoteGone('left'); }, 1500);
-    else remoteGone('left');
-  });
-  call.on('error', () => { if (S.call === call) remoteGone('failed'); });
-}
-function checkPeerLib(){
-  if (typeof Peer === 'undefined' && !relayCanRun()){ toIdle('Модуль связи по коду не загрузился. Используйте «Связь без сервера».', 'err'); return false; }
-  return true;
-}
-async function createChannel(){
-  if (!checkPeerLib()) return;
-  stopAll(); S.mode = 'peer'; S.role = 'host';
-  try{ await ensureMic(); }catch(e){ return failMic(e); }
-  toConnecting('Открываем канал…');
-  openChannel(0);
-  S.joinTimer = setTimeout(() => {
-    if (S.mode === 'peer' && S.role === 'host' && S.state === 'connecting'){
-      stopAll(); toIdle('Сервер соединения не отвечает. Проверьте интернет или используйте «Связь без сервера» ниже.', 'err');
-    }
-  }, 15000);
-}
-function openChannel(attempt){
-  S.code = rnd(6);
-  relayStart('h', S.code);
-  if (typeof Peer === 'undefined') return;
-  const peer = S.peer = makePeer(PREFIX + S.code);
-  peer.on('open', () => { if (S.peer === peer) toWaiting(); });
-  peer.on('call', call => {
-    if (S.peer !== peer) return;
-    if (onRelay()){ try{ call.close(); }catch(e){} return; }
-    if (S.call) p2pDrop();
-    attachCall(call);
-    call.answer(S.localStream);
-    setStatus('Друг подключается…');
-  });
-  peer.on('connection', conn => { if (S.peer === peer && conn.label === 'ctl' && !onRelay()) wirePeerCtl(conn); });
-  peer.on('disconnected', () => {
-    setTimeout(() => { try{ if (S.peer === peer && peer.disconnected && !peer.destroyed) peer.reconnect(); }catch(e){} }, 1500);
-  });
-  peer.on('error', err => {
-    if (err.type === 'unavailable-id' && attempt < 3 && S.peer === peer){ S.peer = null; peer.destroy(); return openChannel(attempt+1); }
-    peerError(peer, err);
-  });
-}
-async function joinChannel(){
-  const code = $('inCode').value.replace(/\D/g, '');
-  if (code.length !== 6){ setStatus('Код канала — 6 цифр. Проверьте, что ввели его полностью.', 'err'); $('inCode').focus(); return; }
-  if (!checkPeerLib()) return;
-  stopAll(); S.mode = 'peer'; S.role = 'guest'; S.code = code;
-  try{ await ensureMic(); }catch(e){ return failMic(e); }
-  setChan(fmt(code));
-  toConnecting('Подключаемся к каналу ' + fmt(code) + '…', 'Если сеть не пропускает прямую связь, через несколько секунд программа сама переключится на связь через сервер.');
-  relayStart('g', code);
-  S.joinTimer = setTimeout(() => {
-    if (S.mode === 'peer' && S.role === 'guest' && S.state !== 'incall'){
-      stopAll(); toIdle('Не удалось найти друга за полторы минуты. Проверьте код канала. Страница Рации у друга должна быть открыта на экране. Если не помогает, откройте «Проверка связи» у обоих.', 'err');
-    }
-  }, 90000);
-  if (typeof Peer === 'undefined' || pref('forceRelay') === '1') return;
-  const peer = S.peer = makePeer(PREFIX + 'g' + rnd(12, 'abcdefghijkmnpqrstuvwxyz23456789'));
-  const tryCall = () => {
-    if (S.peer !== peer || S.state === 'incall' || onRelay() || peer.disconnected) return;
-    p2pDrop();
-    const call = peer.call(PREFIX + code, S.localStream);
-    if (!call) return;
-    attachCall(call);
-    try{ wirePeerCtl(peer.connect(PREFIX + code, {label:'ctl', reliable:true})); }catch(e){}
-  };
-  S.retryCall = tryCall;
-  peer.on('open', tryCall);
-  peer.on('disconnected', () => {
-    setTimeout(() => { try{ if (S.peer === peer && peer.disconnected && !peer.destroyed) peer.reconnect(); }catch(e){} }, 1500);
-  });
-  peer.on('error', err => peerError(peer, err));
-}
 
-/* ---------- связь через сервер: голос по WebSocket, когда прямой WebRTC не проходит ----------
-   Провайдеры могут резать WebRTC по сигнатурам. Тогда голос идёт через публичные MQTT-брокеры
-   по обычному защищённому веб-сокету. Ключ шифрования (ECDH P-256 → AES-GCM) знают только двое,
-   брокер видит лишь зашифрованные пакеты. Пакеты дублируются во все доступные брокеры. */
+/* ---------- серверы-ретрансляторы: общие части ---------- */
 const RELAYS_DEFAULT = [
   'wss://broker.emqx.io:8084/mqtt',
   'wss://broker-cn.emqx.io:8084/mqtt',
@@ -803,10 +662,6 @@ const RELAYS_DEFAULT = [
   'wss://mqtt.eclipseprojects.io/mqtt',
   'wss://public:public@public.cloud.shiftr.io'
 ];
-const R = { gen:0, active:false, role:null, code:null, base:'', conns:[], kp:null, pub:null, sid:'', peerSid:'',
-  key:null, established:false, mode:'none', opusOK:null, peerOpus:false, useOpus:false, idOut:0, seen:new Map(),
-  txSeq:0, rxSeq:-1, lastRx:0, helloT:0, p2pT:0, pingT:0, statT:0, tx:null, rx:null, t0:0, warned:false,
-  audioGen:0, txVia:true, wk:false, rttBest:0, probeT:0, peerLinks:null };
 const te = new TextEncoder(), td = new TextDecoder();
 
 function u8cat(parts){
@@ -826,12 +681,10 @@ function relayList(){
   const v = pref('relays').split(/[\s,]+/).filter(u => /^wss?:\/\/\S+/i.test(u));
   return v.length ? v : RELAYS_DEFAULT;
 }
-function relayAlive(){ return R.active && R.conns.some(c => !c.dead); }
-function relayUp(){ return R.active && R.conns.some(c => c.ok); }
 
 /* минимальный MQTT 3.1.1 поверх WebSocket: CONNECT, SUBSCRIBE, PUBLISH QoS 0, PING */
 function mqttOpen(url, topic, onMsg, onUp){
-  const c = { url, ok:false, dead:false, ws:null, retry:0, timer:0, ping:0, opened:false };
+  const c = { url, ok:false, dead:false, ws:null, retry:0, timer:0, ping:0, opened:false, pid:1, topics:new Set(Array.isArray(topic) ? topic : [topic]) };
   let wsUrl = url, user = '', pass = '';
   try{
     const u = new URL(url);
@@ -859,9 +712,10 @@ function mqttOpen(url, topic, onMsg, onUp){
       const h = buf[0], body = buf.slice(i, i + len); buf = buf.slice(i + len);
       const type = h >> 4;
       if (type === 2){
-        if (body[1] === 0) ws.send(pkt(0x82, [Uint8Array.of(0, 1), str(topic), Uint8Array.of(0)]));
+        if (body[1] === 0){ const parts = [Uint8Array.of(0, 1)]; for (const t of c.topics) parts.push(str(t), Uint8Array.of(0)); ws.send(pkt(0x82, parts)); }
         else { try{ ws.close(); }catch(e){} }
       } else if (type === 9){
+        if (c.ok) continue;
         c.ok = true; c.retry = 0;
         clearInterval(c.ping);
         c.ping = setInterval(() => { try{ if (c.ws === ws && ws.readyState === 1) ws.send(Uint8Array.of(0xC0, 0)); }catch(e){} }, 25000);
@@ -899,6 +753,15 @@ function mqttOpen(url, topic, onMsg, onUp){
     if (c.ws && c.ws.readyState <= 1) return;
     clearTimeout(c.timer); c.retry = 0; open();
   };
+  c.sub = t => {
+    if (c.topics.has(t)) return;
+    c.topics.add(t);
+    if (c.ok && c.ws && c.ws.readyState === 1){ c.pid = (c.pid % 60000) + 2; try{ c.ws.send(pkt(0x82, [Uint8Array.of(c.pid >> 8, c.pid & 255), str(t), Uint8Array.of(0)])); }catch(e){} }
+  };
+  c.unsub = t => {
+    if (!c.topics.delete(t)) return;
+    if (c.ok && c.ws && c.ws.readyState === 1){ c.pid = (c.pid % 60000) + 2; try{ c.ws.send(pkt(0xA2, [Uint8Array.of(c.pid >> 8, c.pid & 255), str(t)])); }catch(e){} }
+  };
   c.publish = (t, payload) => {
     const ws = c.ws;
     if (!c.ok || !ws || ws.readyState !== 1 || ws.bufferedAmount > 128 * 1024) return;
@@ -914,245 +777,16 @@ function mqttOpen(url, topic, onMsg, onUp){
 }
 
 async function relayCaps(){
-  if (R.opusOK !== null) return R.opusOK;
-  if (pref('codec') === 'ulaw'){ R.opusOK = false; return false; }
+  if (RM.opusOK !== null) return RM.opusOK;
+  if (pref('codec') === 'ulaw'){ RM.opusOK = false; return false; }
   try{
     const a = typeof AudioEncoder !== 'undefined' &&
       (await AudioEncoder.isConfigSupported({codec:'opus', sampleRate:48000, numberOfChannels:1, bitrate:24000})).supported;
     const b = typeof AudioDecoder !== 'undefined' &&
       (await AudioDecoder.isConfigSupported({codec:'opus', sampleRate:48000, numberOfChannels:1})).supported;
-    R.opusOK = !!(a && b);
-  }catch(e){ R.opusOK = false; }
-  return R.opusOK;
-}
-
-async function relayStart(role, code){
-  relayStop();
-  if (!relayCanRun()) return;
-  const gen = ++R.gen;
-  R.active = true; R.role = role; R.code = code; R.t0 = Date.now(); R.warned = false;
-  try{
-    const base = 'racia/v1/' + (await sha256hex('racia-relay:' + code)).slice(0, 32);
-    await relayCaps();
-    const kp = await crypto.subtle.generateKey({name:'ECDH', namedCurve:'P-256'}, false, ['deriveKey']);
-    const pub = new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey));
-    if (gen !== R.gen) return;
-    R.base = base; R.kp = kp; R.pub = pub;
-  }catch(e){ if (gen === R.gen) R.active = false; return; }
-  R.sid = rnd(10, 'abcdefghijkmnpqrstuvwxyz23456789');
-  const mine = R.base + '/' + role;
-  R.conns = relayList().slice(0, 6).map(u => mqttOpen(u, mine, relayRx, relayConnUp));
-  clearInterval(R.probeT);
-  R.probeT = setInterval(relayProbe, 3000);
-  setTimeout(relayProbe, 1200);
-  clearInterval(R.helloT);
-  R.helloT = setInterval(() => {
-    if (!R.active || R.established) return;
-    relayHello();
-    if (R.key) relaySendCtl({t:'ready'});
-  }, 1500);
-}
-/* замер скорости каждого сервера: пакет самому себе и обратно */
-function relayProbe(){
-  if (!R.active || !R.base) return;
-  const me = R.base + '/' + R.role;
-  for (const c of R.conns){
-    if (!c.ok) continue;
-    const b = new Uint8Array(9); b[0] = 0x7F; new DataView(b.buffer).setFloat64(1, performance.now());
-    c.publish(me, b);
-  }
-}
-function relayScore(c){ const p = R.peerLinks; return (c.rtt || 400) + (p && p[c.url] !== undefined ? p[c.url] : 400); }
-/* голос шлём только через общие для обоих и самые быстрые серверы */
-function relayAudioConns(){
-  const ok = R.conns.filter(c => c.ok);
-  if (!ok.length) return ok;
-  const p = R.peerLinks;
-  let cand = ok;
-  if (p){ const both = ok.filter(c => p[c.url] !== undefined); if (both.length) cand = both; }
-  const best = Math.min(...cand.map(relayScore));
-  return cand.filter(c => relayScore(c) <= best * 1.5 + 80);
-}
-function relayConnUp(){
-  if (!R.active) return;
-  if (!R.established) relayHello();
-  if (S.mode === 'peer' && S.role === 'host' && S.state === 'connecting') toWaiting();
-}
-function relayResetPeer(){
-  clearTimeout(R.p2pT);
-  upReset(); R.peerLinks = null;
-  relayAudioStop();
-  R.key = null; R.peerSid = ''; R.established = false; R.mode = 'none';
-  R.seen.clear(); R.rxSeq = -1;
-}
-function relayStop(){
-  R.gen++;
-  relayResetPeer();
-  clearInterval(R.helloT); clearInterval(R.probeT);
-  const old = R.conns; R.conns = [];
-  if (old.length) setTimeout(() => old.forEach(c => c.close()), 400);
-  R.active = false; R.kp = null; R.pub = null;
-}
-function relayBye(){ if (R.established) relaySendCtl({t:'bye'}, true); }
-
-function relayTarget(){ return R.base + '/' + (R.role === 'h' ? 'g' : 'h'); }
-function relayPublish(bytes, conns, t){
-  t = t || relayTarget();
-  for (const c of (conns || R.conns)) c.publish(t, bytes);
-}
-function relayHello(){
-  if (!R.pub) return;
-  const p2p = S.peer && S.peer.open && !S.peer.disconnected && pref('forceRelay') !== '1' ? 1 : 0;
-  relayPublish(u8cat([Uint8Array.of(0), te.encode(JSON.stringify({s:R.sid, k:b64(R.pub), o:R.opusOK ? 1 : 0, p:p2p}))]));
-}
-async function relaySend(type, payload, force, only){
-  const key = R.key; if (!key) return;
-  const conns = only || R.conns, t = relayTarget();
-  const idb = new Uint8Array(4); R.idOut = (R.idOut + 1) >>> 0; new DataView(idb.buffer).setUint32(0, R.idOut);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv, additionalData:idb}, key, u8cat([Uint8Array.of(type), payload])));
-  if (force || R.key === key) relayPublish(u8cat([Uint8Array.of(0xE1), idb, iv, ct]), conns, t);
-}
-function relaySendCtl(obj, force){ relaySend(2, te.encode(JSON.stringify(obj)), force).catch(() => {}); }
-
-async function relayRx(bytes, c){
-  if (!R.active || !bytes.length) return;
-  if (bytes[0] === 0x7F){
-    if (c && bytes.length >= 9){
-      const rtt = performance.now() - new DataView(bytes.buffer, bytes.byteOffset + 1, 8).getFloat64(0);
-      if (rtt >= 0 && rtt < 20000) c.rtt = c.rtt ? c.rtt * 0.6 + rtt * 0.4 : rtt;
-    }
-    return;
-  }
-  if (bytes[0] === 0) return relayHelloRx(bytes);
-  if (bytes[0] !== 0xE1 || !R.key || bytes.length < 34) return;
-  const id = ((bytes[1] << 24) | (bytes[2] << 16) | (bytes[3] << 8) | bytes[4]) >>> 0;
-  if (R.seen.has(id)) return;
-  R.seen.set(id, 1);
-  if (R.seen.size > 800){ const it = R.seen.keys(); for (let i = 0; i < 400; i++) R.seen.delete(it.next().value); }
-  const key = R.key;
-  let plain;
-  try{ plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:bytes.subarray(5, 17), additionalData:bytes.subarray(1, 5)}, key, bytes.subarray(17))); }
-  catch(e){ R.seen.delete(id); return; }
-  if (key !== R.key) return;
-  R.lastRx = Date.now();
-  const type = plain[0], body = plain.subarray(1);
-  if (type === 1) rxAudio(body);
-  else if (type === 2){
-    let d; try{ d = JSON.parse(td.decode(body)); }catch(e){ return; }
-    relayCtl(d);
-  }
-}
-async function relayHelloRx(bytes){
-  let d; try{ d = JSON.parse(td.decode(bytes.subarray(1))); }catch(e){ return; }
-  if (!d || typeof d.s !== 'string' || typeof d.k !== 'string' || d.s === R.peerSid || !R.kp) return;
-  /* занят живым разговором — чужие приветствия не принимаем */
-  if (R.established && Date.now() - R.lastRx < 8000) return;
-  if (R.established){ const wasRelay = onRelay(); relayResetPeer(); if (wasRelay && S.state === 'incall') return remoteGone('relay-lost'); }
-  const kp = R.kp;
-  R.peerSid = d.s;
-  try{
-    const peerKey = await crypto.subtle.importKey('raw', unb64(d.k), {name:'ECDH', namedCurve:'P-256'}, false, []);
-    const key = await crypto.subtle.deriveKey({name:'ECDH', public:peerKey}, kp.privateKey, {name:'AES-GCM', length:128}, false, ['encrypt', 'decrypt']);
-    if (R.peerSid !== d.s || R.kp !== kp) return;
-    R.key = key; R.peerOpus = !!d.o; R.peerP2P = d.p !== 0; R.established = false; R.seen.clear(); R.rxSeq = -1; R.lastRx = Date.now();
-  }catch(e){ if (R.peerSid === d.s) R.peerSid = ''; return; }
-  relayHello();
-  relaySendCtl({t:'ready'});
-}
-function relayCtl(d){
-  if (!d || typeof d.t !== 'string') return;
-  if (d.t === 'ready'){
-    if (!R.established){ R.established = true; relaySendCtl({t:'ready'}); relayLinked(); }
-  } else if (d.t === 'mode'){
-    if (d.m === 'relay') enterRelay(false);
-    else if (d.m === 'p2p' && R.mode === 'none') R.mode = 'p2p';
-  } else if (d.t === 'bye'){
-    const active = S.state === 'incall' || S.state === 'connecting' || onRelay();
-    relayResetPeer();
-    if (active) remoteGone('left');
-  } else if (d.t === 'cap'){
-    if (onRelay()) capRecv(d);
-  } else if (d.t === 'sdp'){
-    upOnSdp(d);
-  } else if (d.t === 'ice'){
-    upOnIce(d);
-  } else if (d.t === 'up'){
-    upOnUp(d);
-  } else if (d.t === 'links'){
-    if (Array.isArray(d.l)){ const m = {}; for (const x of d.l) if (Array.isArray(x) && typeof x[0] === 'string') m[x[0]] = +x[1] || 400; R.peerLinks = m; }
-  }
-}
-function p2pUp(){
-  const pc = S.mode === 'peer' && S.call ? S.call.peerConnection : null;
-  return !!pc && linkState(pc) === 'connected';
-}
-function p2pDrop(){
-  /* закрывает только прямой канал; звук через сервер не трогает */
-  const call = S.call; S.call = null;
-  if (!call) return;
-  const c = ctls.get(call.peer); ctls.delete(call.peer);
-  try{ c && c.close(); }catch(e){}
-  try{ call.close(); }catch(e){}
-  if (S.remoteStream && !onRelay()){
-    S.remoteStream = null; $('remote').srcObject = null;
-    if (S.remoteMeter) S.remoteMeter.disconnect(); S.remoteMeter = null;
-  }
-}
-function onRelay(){ return R.mode === 'relay' || R.mode === 'up'; }
-function relayLinked(){
-  R.lastRx = Date.now();
-  if (onRelay()) return;
-  if (p2pUp() && S.state === 'incall'){ R.mode = 'p2p'; relaySendCtl({t:'mode', m:'p2p'}); return; }
-  /* сразу говорим через сервер, а прямой канал поднимаем параллельно — так быстрее всего */
-  enterRelay(true);
-}
-async function enterRelay(initiator){
-  if (onRelay() || !R.established || S.mode !== 'peer') return;
-  R.mode = 'relay'; R.txVia = true;
-  clearTimeout(R.p2pT); clearTimeout(S.joinTimer);
-  if (initiator) relaySendCtl({t:'mode', m:'relay'});
-  p2pDrop();
-  if (!S.localStream){ try{ await ensureMic(); }catch(e){ return failMic(e); } }
-  ensureAudioCtx();
-  await relayAudioStart();
-  if (!onRelay()) return;
-  if (S.state !== 'incall') toCall(); else setStatus('На связи', 'ok');
-  relayRoute();
-  clearInterval(R.pingT);
-  R.pingT = setInterval(() => {
-    if (!onRelay()) return;
-    relaySendCtl({t:'ping'});
-    const directAlive = R.mode === 'up' && UP.selfUp;
-    if (!directAlive && Date.now() - R.lastRx > 12000) remoteGone('relay-lost');
-  }, 2000);
-  clearInterval(R.statT);
-  R.statT = setInterval(relayTick, 1000);
-  UP.tries = 0;
-  if (UP.pendingOffer){ const d = UP.pendingOffer; UP.pendingOffer = null; upOnSdp(d); }
-  if (S.role === 'guest'){ clearTimeout(UP.retryT); UP.retryT = setTimeout(upStart, 600); }
-}
-function relayRoute(){
-  if (R.mode !== 'relay') return;
-  const jb = R.rx;
-  const est = (R.rttBest || 150) + (jb ? jb.targetMs : 80) + 40 + (jb && jb.loop ? 30 : 0);
-  $('route').textContent = 'через сервер · ~' + Math.round(est / 10) * 10 + ' мс' + (R.useOpus ? '' : ' · эконом');
-}
-function relayTick(){
-  const jb = R.rx; if (!jb || !S.ac) return;
-  /* буфер подстраивается под реальные рывки сети: чем ровнее сеть, тем меньше задержка */
-  if (jb.lat.length >= 10){
-    const s = jb.lat.slice().sort((a, b) => a - b);
-    const ms = Math.max(40, Math.min(300, Math.round(s[Math.floor((s.length - 1) * 0.95)] + 25)));
-    if (Math.abs(ms - jb.targetMs) >= 5){ jb.targetMs = ms; jb.setTarget(Math.round(S.ac.sampleRate * ms / 1000)); }
-  }
-  if (jb.ticks % 5 === 0) relaySendCtl({t:'links', l:R.conns.filter(c => c.ok).map(c => [c.url, Math.round(c.rtt || 400)])});
-  const ac2 = relayAudioConns(); R.rttBest = ac2.length ? Math.min(...ac2.map(relayScore)) / 2 : 0;
-  if (++jb.ticks % 2 === 0){
-    const u = jb.under; jb.under = 0;
-    if (R.mode === 'relay') setBars(u > 6 ? 1 : u > 2 ? 2 : u > 0 ? 3 : 4);
-  }
-  relayRoute();
+    RM.opusOK = !!(a && b);
+  }catch(e){ RM.opusOK = false; }
+  return RM.opusOK;
 }
 
 /* ---------- звук через сервер: кодирование, буфер, воспроизведение ---------- */
@@ -1189,18 +823,6 @@ function ulawToLin(u){
   const sign = u & 0x80, exponent = (u >> 4) & 7, mantissa = u & 0x0F;
   const sample = (((mantissa << 3) + 0x84) << exponent) - 0x84;
   return sign ? -sample : sample;
-}
-function relaySendAudio(codec, body){
-  R.txSeq = (R.txSeq + 1) >>> 0;
-  const h = new Uint8Array(5); h[0] = codec; new DataView(h.buffer).setUint32(1, R.txSeq);
-  relaySend(1, u8cat([h, body]), false, relayAudioConns()).catch(() => {});
-}
-function txFlushOpus(tx){
-  const ch = tx.chunks; tx.chunks = [];
-  if (!ch.length) return;
-  const parts = [Uint8Array.of(ch.length)];
-  for (const b of ch) parts.push(Uint8Array.of(b.length >> 8, b.length & 255), b);
-  relaySendAudio(1, u8cat(parts));
 }
 async function loopback(stream){
   /* звук друга прогоняем через местное WebRTC-соединение: так браузер гасит эхо */
@@ -1277,50 +899,446 @@ function ensureWorklet(ac){
   return wkReady.get(ac);
 }
 
-async function relayAudioStart(){
-  relayAudioStop();
-  const ac = S.ac; if (!ac || !S.localStream) return;
-  const gen = ++R.audioGen;
-  R.useOpus = !!(R.opusOK && R.peerOpus);
+/* ---------- канал до 4 человек ----------
+   Всё идёт через серверы-ретрансляторы (MQTT по защищённому веб-сокету): так связь проходит
+   даже там, где провайдер режет WebRTC. Каждый участник шлёт свой голос один раз, остальные
+   принимают и смешивают у себя. Между каждой парой программа пытается открыть прямой канал —
+   получилось, и голос этой пары идёт напрямую с минимальной задержкой.
+   Ключ канала (AES-GCM) создаёт тот, кто открыл канал, и выдаёт новым участникам, зашифровав
+   его парным ключом ECDH. Серверы видят только зашифрованные пакеты. */
+const MAX_PEOPLE = 4;
+const PKT_MS = 40;
+const RM = { gen:0, active:false, creator:false, code:'', base:'', conns:[], pid:'', kp:null, pub:null,
+  gkey:null, gkeyRaw:null, joined:false, members:new Map(), seen:new Map(), welcomed:new Map(),
+  idOut:0, txSeq:0, tx:null, wk:false, useOpus:false, opusOK:null, txVia:false,
+  helloT:0, pingT:0, probeT:0, tickT:0, t0:0, warned:false, mix:null, audioGen:0, ticks:0, rttBest:0 };
+
+function roomPeers(){ return [...RM.members.values()].sort((a, b) => a.color - b.color); }
+function peerName(m){ return m.name || ('Друг ' + m.color); }
+function myName(){ return (pref('name') || '').trim().slice(0, 20); }
+function roomTopic(x){ return RM.base + '/' + x; }
+
+async function importAes(raw){ return crypto.subtle.importKey('raw', raw, {name:'AES-GCM'}, false, ['encrypt', 'decrypt']); }
+async function pairKey(pubB64){
+  const pk = await crypto.subtle.importKey('raw', unb64(pubB64), {name:'ECDH', namedCurve:'P-256'}, false, []);
+  return crypto.subtle.deriveKey({name:'ECDH', public:pk}, RM.kp.privateKey, {name:'AES-GCM', length:128}, false, ['encrypt', 'decrypt']);
+}
+
+async function roomStart(code, create){
+  roomStop();
+  if (!relayCanRun()) throw new Error('браузер не умеет шифровать связь');
+  const gen = ++RM.gen;
+  Object.assign(RM, { active:true, creator:create, code, joined:false, t0:Date.now(), warned:false, idOut:0, txSeq:0, txVia:false, ticks:0 });
+  RM.members.clear(); RM.seen.clear(); RM.welcomed.clear();
+  RM.pid = rnd(8, 'abcdefghijkmnpqrstuvwxyz23456789');
+  const base = 'racia/v2/' + (await sha256hex('racia-room:' + code)).slice(0, 32);
+  await relayCaps();
+  const kp = await crypto.subtle.generateKey({name:'ECDH', namedCurve:'P-256'}, false, ['deriveKey']);
+  const pub = new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey));
+  let gk = null, raw = null;
+  if (create){ raw = crypto.getRandomValues(new Uint8Array(16)); gk = await importAes(raw); }
+  if (gen !== RM.gen) return;
+  RM.base = base; RM.kp = kp; RM.pub = pub;
+  if (create){ RM.gkeyRaw = raw; RM.gkey = gk; RM.joined = true; }
+  RM.conns = relayList().slice(0, 6).map(u => mqttOpen(u, [roomTopic('all'), roomTopic(RM.pid)], roomRx, roomConnUp));
+  RM.probeT = setInterval(roomProbe, 3000); setTimeout(roomProbe, 1200);
+  RM.helloT = setInterval(() => { if (RM.active && !RM.joined) roomHello(); }, 1500);
+  RM.pingT = setInterval(roomPing, 2000);
+  RM.tickT = setInterval(roomTick, 1000);
+  if (create) roomAudioStart();
+}
+function roomStop(){
+  RM.gen++;
+  for (const m of [...RM.members.values()]) roomDrop(m);
+  RM.members.clear();
+  roomAudioStop();
+  clearInterval(RM.helloT); clearInterval(RM.pingT); clearInterval(RM.probeT); clearInterval(RM.tickT);
+  const old = RM.conns; RM.conns = [];
+  if (old.length) setTimeout(() => old.forEach(c => c.close()), 400);
+  Object.assign(RM, { active:false, joined:false, gkey:null, gkeyRaw:null, kp:null, pub:null, txVia:false });
+  renderPeers();
+}
+function roomBye(){ if (RM.joined && RM.members.size) roomCtl({t:'bye'}, null, true); }
+function roomConnUp(){
+  if (!RM.active) return;
+  if (!RM.joined) roomHello();
+  else roomPing();
+  if (S.mode === 'room' && RM.creator && S.state === 'connecting') toWaiting();
+}
+/* замер скорости каждого сервера: пакет самому себе и обратно */
+function roomProbe(){
+  if (!RM.active || !RM.base) return;
+  const me = roomTopic(RM.pid);
+  for (const c of RM.conns){
+    if (!c.ok) continue;
+    const b = new Uint8Array(9); b[0] = 0x7F; new DataView(b.buffer).setFloat64(1, performance.now());
+    c.publish(me, b);
+  }
+}
+/* голос шлём через серверы, которые отвечают у всех, и среди них — через самые быстрые */
+function roomAudioConns(){
+  const ok = RM.conns.filter(c => c.ok);
+  if (!ok.length) return ok;
+  const ms = roomPeers().filter(m => m.links);
+  let cand = ok;
+  if (ms.length){ const both = ok.filter(c => ms.every(m => m.links[c.url] !== undefined)); if (both.length) cand = both; }
+  const score = c => (c.rtt || 400) + Math.max(0, ...ms.map(m => m.links[c.url] !== undefined ? m.links[c.url] : 400));
+  const best = Math.min(...cand.map(score));
+  RM.rttBest = best / 2;
+  return cand.filter(c => score(c) <= best * 1.5 + 80);
+}
+function roomPublish(topic, bytes, conns){ for (const c of (conns || RM.conns)) c.publish(topic, bytes); }
+function roomPlain(type, obj){ return u8cat([Uint8Array.of(type), te.encode(JSON.stringify(obj))]); }
+function roomHello(){
+  if (!RM.pub) return;
+  roomPublish(roomTopic('all'), roomPlain(0x01, {p:RM.pid, k:b64(RM.pub)}));
+}
+async function roomSend(type, payload, topic, conns, force){
+  const key = RM.gkey; if (!key) return;
+  const cs = conns || RM.conns;
+  RM.idOut = (RM.idOut + 1) >>> 0;
+  const hdr = new Uint8Array(13); hdr[0] = 0xE2; hdr.set(te.encode(RM.pid), 1); new DataView(hdr.buffer).setUint32(9, RM.idOut);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv, additionalData:hdr.subarray(1, 13)}, key, u8cat([Uint8Array.of(type), payload])));
+  if (force || RM.gkey === key) roomPublish(topic, u8cat([hdr, iv, ct]), cs);
+}
+function roomCtl(obj, to, force){ roomSend(2, te.encode(JSON.stringify(obj)), roomTopic(to || 'all'), null, force).catch(() => {}); }
+function roomPing(){
+  if (!RM.active || !RM.joined) return;
+  roomCtl({t:'ping', n:myName(), mu:S.muted ? 1 : 0, o:RM.opusOK ? 1 : 0,
+    l:RM.conns.filter(c => c.ok).map(c => [c.url, Math.round(c.rtt || 400)])});
+}
+
+async function roomRx(bytes, c){
+  if (!RM.active || !bytes.length) return;
+  const t = bytes[0];
+  if (t === 0x7F){
+    if (c && bytes.length >= 9){
+      const rtt = performance.now() - new DataView(bytes.buffer, bytes.byteOffset + 1, 8).getFloat64(0);
+      if (rtt >= 0 && rtt < 20000) c.rtt = c.rtt ? c.rtt * 0.6 + rtt * 0.4 : rtt;
+    }
+    return;
+  }
+  if (t === 0x01) return roomOnHello(bytes);
+  if (t === 0x02) return roomOnWelcome(bytes);
+  if (t === 0x03) return roomOnFull();
+  if (t !== 0xE2 || !RM.gkey || bytes.length < 41) return;
+  const from = td.decode(bytes.subarray(1, 9));
+  if (from === RM.pid) return;
+  const idKey = from + ':' + (((bytes[9] << 24) | (bytes[10] << 16) | (bytes[11] << 8) | bytes[12]) >>> 0);
+  if (RM.seen.has(idKey)) return;
+  RM.seen.set(idKey, 1);
+  if (RM.seen.size > 1600){ const it = RM.seen.keys(); for (let i = 0; i < 800; i++) RM.seen.delete(it.next().value); }
+  const key = RM.gkey;
+  let plain;
+  try{ plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:bytes.subarray(13, 25), additionalData:bytes.subarray(1, 13)}, key, bytes.subarray(25))); }
+  catch(e){ RM.seen.delete(idKey); return; }
+  if (key !== RM.gkey || !RM.active) return;
+  if (plain[0] === 2){
+    let d; try{ d = JSON.parse(td.decode(plain.subarray(1))); }catch(e){ return; }
+    if (!d || typeof d.t !== 'string') return;
+    if (d.t === 'bye'){ const m = RM.members.get(from); if (m) roomRemove(m, 'left'); return; }
+    roomOnCtl(roomMember(from), d);
+  } else if (plain[0] === 1){
+    const m = RM.members.get(from);
+    if (m){ m.last = Date.now(); roomAudioIn(m, plain.subarray(1)); }
+  }
+}
+async function roomOnHello(bytes){
+  let d; try{ d = JSON.parse(td.decode(bytes.subarray(1))); }catch(e){ return; }
+  if (!d || typeof d.p !== 'string' || d.p.length !== 8 || d.p === RM.pid || typeof d.k !== 'string') return;
+  if (!RM.joined || !RM.gkeyRaw || RM.members.has(d.p)) return;
+  const now = Date.now();
+  if (now - (RM.welcomed.get(d.p) || 0) < 3000) return;
+  RM.welcomed.set(d.p, now);
+  const count = 1 + RM.members.size;
+  if (count >= MAX_PEOPLE){ roomPublish(roomTopic(d.p), roomPlain(0x03, {p:RM.pid})); return; }
+  try{
+    const pk = await pairKey(d.k);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, pk, RM.gkeyRaw));
+    roomPublish(roomTopic(d.p), roomPlain(0x02, {p:RM.pid, k:b64(RM.pub), w:b64(u8cat([iv, ct])), c:count}));
+  }catch(e){}
+}
+async function roomOnWelcome(bytes){
+  if (RM.joined || !RM.kp) return;
+  let d; try{ d = JSON.parse(td.decode(bytes.subarray(1))); }catch(e){ return; }
+  if (!d || typeof d.k !== 'string' || typeof d.w !== 'string') return;
+  if (d.c >= MAX_PEOPLE) return roomOnFull();
+  try{
+    const pk = await pairKey(d.k), w = unb64(d.w);
+    const raw = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:w.subarray(0, 12)}, pk, w.subarray(12)));
+    if (RM.joined || raw.length !== 16) return;
+    const gk = await importAes(raw);
+    if (RM.joined) return;
+    RM.gkeyRaw = raw; RM.gkey = gk; RM.joined = true;
+    clearTimeout(S.joinTimer);
+    roomPing();
+    roomAudioStart();
+    if (S.mode === 'room' && S.state === 'connecting'){ toWaiting(); setStatus('Вы в канале. Собираем остальных…'); }
+  }catch(e){}
+}
+function roomOnFull(){
+  if (RM.joined || S.mode !== 'room') return;
+  stopAll(); toIdle('Канал заполнен: в нём уже ' + MAX_PEOPLE + ' человека.', 'err');
+}
+
+/* ---------- участники ---------- */
+function roomMember(pid){
+  let m = RM.members.get(pid);
+  if (m){ m.last = Date.now(); return m; }
+  const used = new Set([...RM.members.values()].map(x => x.color));
+  let color = 1; while (used.has(color)) color++;
+  m = { pid, name:'', color, last:Date.now(), muted:false, links:null, opus:true,
+    player:null, dec:null, ts:0, rxSeq:-1, lat:[], spMin:Infinity, lastArr:0, lastSeq:-1, targetMs:80, under:0,
+    rs8:null, rs48:null, meter:null, lv:0, up:null, early:{}, upTries:0, upRetry:0 };
+  RM.members.set(pid, m);
+  for (const c of RM.conns) c.sub(roomTopic('a/' + pid));
+  roomChanged('join', m);
+  /* прямой канал между парой открывает тот, чей номер меньше */
+  if (RM.pid < pid) setTimeout(() => upStart(m), 900);
+  return m;
+}
+function roomOnCtl(m, d){
+  if (d.t === 'ping'){
+    const nm = typeof d.n === 'string' ? d.n.slice(0, 20) : '';
+    const changed = nm !== m.name || !!d.mu !== m.muted;
+    m.name = nm; m.muted = !!d.mu; m.opus = d.o !== 0;
+    if (Array.isArray(d.l)){ const l = {}; for (const x of d.l) if (Array.isArray(x) && typeof x[0] === 'string') l[x[0]] = +x[1] || 400; m.links = l; }
+    if (changed){ renderPeers(); roomStatus(); }
+    roomCodec();
+  } else if (d.t === 'cap'){
+    capRecv(d, m);
+  } else if (d.t === 'sdp' || d.t === 'ice' || d.t === 'up'){
+    if (d.to !== RM.pid) return;
+    if (d.t === 'sdp') upOnSdp(m, d); else if (d.t === 'ice') upOnIce(m, d); else upOnUp(m, d);
+  }
+}
+function roomDrop(m){
+  upClose(m); clearTimeout(m.upRetry);
+  if (m.player){ m.player.stop(); m.player = null; }
+  try{ m.dec && m.dec.state !== 'closed' && m.dec.close(); }catch(e){}
+  m.dec = null;
+  for (const c of RM.conns) c.unsub(roomTopic('a/' + m.pid));
+}
+function roomRemove(m, why){
+  if (!RM.members.has(m.pid)) return;
+  roomDrop(m);
+  RM.members.delete(m.pid);
+  roomChanged(why === 'left' ? 'left' : 'lost', m);
+}
+function roomChanged(kind, m){
+  roomTxVia(); roomCodec();
+  renderPeers(); roomCount();
+  if (S.mode !== 'room') return;
+  const n = RM.members.size;
+  if (n && S.state !== 'incall'){ toCall(); roomStatus(); return; }
+  if (!n && S.state === 'incall'){
+    capStop(); clearInterval(S.tick); releaseWake(); $('timer').textContent = '00:00';
+    toWaiting();
+    setStatus(peerName(m) + (kind === 'join' ? '' : kind === 'left' ? ' вышел' : ' пропал') + '. Вы одни в канале.', 'warn');
+    return;
+  }
+  if (S.state === 'incall'){
+    if (kind === 'join') setStatus(peerName(m) + ' подключился', 'ok');
+    else setStatus(peerName(m) + (kind === 'left' ? ' вышел' : ' пропал'), 'warn');
+    clearTimeout(RM.statusT); RM.statusT = setTimeout(roomStatus, 2500);
+  }
+}
+function roomStatus(){
+  if (S.mode !== 'room' || S.state !== 'incall') return;
+  setStatus('На связи: ' + roomPeers().map(peerName).join(', '), 'ok');
+}
+function roomCount(){
+  const el = $('cnt');
+  if (S.mode !== 'room' || !RM.joined){ el.textContent = ''; $('btnInvite').hidden = true; return; }
+  const n = 1 + RM.members.size;
+  el.textContent = n + ' из ' + MAX_PEOPLE;
+  $('btnInvite').hidden = n >= MAX_PEOPLE;
+}
+/* строки громкости участников на экране рации */
+function renderPeers(){
+  const box = $('mPeers'); box.textContent = '';
+  for (const m of roomPeers()){
+    const row = document.createElement('div'); row.className = 'meter p' + m.color;
+    const nm = document.createElement('span'); nm.textContent = peerName(m).toUpperCase() + (m.muted ? ' ·' : '');
+    nm.title = peerName(m) + (m.muted ? ' (микрофон выключен)' : '');
+    const bar = document.createElement('i'); bar.id = 'mv-' + m.pid;
+    row.append(nm, bar); box.append(row);
+  }
+  if (S.mode === 'manual'){
+    const row = document.createElement('div'); row.className = 'meter p1';
+    const nm = document.createElement('span'); nm.textContent = 'ДРУГ';
+    const bar = document.createElement('i'); bar.id = 'mv-manual';
+    row.append(nm, bar); box.append(row);
+  }
+}
+function roomTxVia(){
+  const ms = roomPeers();
+  RM.txVia = ms.length > 0 && ms.some(m => !(m.up && m.up.selfUp && m.up.peerUp));
+}
+function roomTick(){
+  if (!RM.active) return;
+  RM.ticks++;
+  const now = Date.now();
+  for (const m of roomPeers()){
+    if (now - m.last > 10000){ roomRemove(m, 'lost'); continue; }
+    /* буфер каждого участника подстраивается под рывки его сети */
+    if (m.player && m.lat.length >= 10){
+      const s = m.lat.slice().sort((a, b) => a - b);
+      const ms = Math.max(40, Math.min(300, Math.round(s[Math.floor((s.length - 1) * 0.95)] + 25)));
+      if (Math.abs(ms - m.targetMs) >= 5){ m.targetMs = ms; m.player.setTarget(ms); }
+    }
+  }
+  if (S.mode === 'room' && (S.state === 'waiting' || S.state === 'connecting')){
+    const up = RM.conns.filter(c => c.ok).length, n = RM.conns.length;
+    if (n) $('route').textContent = 'серверы: ' + up + ' из ' + n;
+    if (S.state === 'connecting' && !up && !RM.warned && now - RM.t0 > 10000){
+      RM.warned = true;
+      setStatus('Серверы-ретрансляторы не отвечают из вашей сети. Откройте «Проверка связи» внизу.', 'err');
+    }
+  }
+  if (S.mode === 'room' && S.state === 'incall' && RM.ticks % 2 === 0) roomRoute();
+}
+async function roomRoute(){
+  const ms = roomPeers(); if (!ms.length) return;
+  const direct = ms.filter(m => m.up && m.up.selfUp && m.up.el);
+  let rtt = 0;
+  for (const m of direct){
+    try{
+      const st = await m.up.pc.getStats();
+      st.forEach(r => { if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.nominated && r.currentRoundTripTime != null) rtt = Math.max(rtt, r.currentRoundTripTime * 1000); });
+    }catch(e){}
+  }
+  let under = 0; for (const m of ms){ under += m.under; m.under = 0; }
+  const conns = roomAudioConns();
+  if (direct.length === ms.length){
+    $('route').textContent = 'напрямую' + (rtt ? ' · ' + Math.round(rtt) + ' мс' : '');
+    setBars(rtt < 80 ? 4 : rtt < 160 ? 3 : rtt < 300 ? 2 : 1);
+  } else {
+    const relayMs = ms.filter(m => !direct.includes(m));
+    const tgt = Math.max(...relayMs.map(m => m.targetMs));
+    const est = (conns.length ? RM.rttBest : 150) + tgt + PKT_MS + (RM.mix && RM.mix.loop ? 30 : 0);
+    $('route').textContent = (direct.length ? 'смешанно' : 'через сервер') + ' · ~' + Math.round(est / 10) * 10 + ' мс' + (RM.useOpus ? '' : ' · эконом');
+    setBars(under > 6 ? 1 : under > 2 ? 2 : under > 0 ? 3 : 4);
+  }
+}
+
+/* ---------- звук ---------- */
+async function roomAudioStart(){
+  const ac = S.ac; if (!ac || !S.localStream || RM.tx) return;
+  const gen = ++RM.audioGen;
   let wk = false;
   try{ await Promise.race([ensureWorklet(ac), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 2000))]); wk = true; }catch(e){}
-  if (gen !== R.audioGen || !onRelay()) return;
-  R.wk = wk;
+  if (gen !== RM.audioGen || !RM.active) return;
+  RM.wk = wk;
+  RM.useOpus = !!RM.opusOK;
   txStart();
-
-  /* приём */
-  const jb = { node:null, under:0, dec:null, ts:0, rs8:makeResampler(8000, ac.sampleRate), rs48:makeResampler(48000, ac.sampleRate),
-    loop:null, sink:null, out:null, targetMs:80, ticks:0, lat:[], spMin:Infinity, lastArr:0, lastSeq:-1 };
-  if (wk){
-    jb.node = new AudioWorkletNode(ac, 'racia-play', {numberOfInputs:0, numberOfOutputs:1, outputChannelCount:[1]});
-    jb.node.port.onmessage = () => { jb.under++; };
-    jb.push = f => { try{ jb.node.port.postMessage({pcm:f}, [f.buffer]); }catch(e){ try{ jb.node.port.postMessage({pcm:f}); }catch(_){} } };
-    jb.setTarget = s => jb.node.port.postMessage({target:s});
+  /* все голоса смешиваются в одном месте и играют через местное WebRTC-соединение — так браузер гасит эхо */
+  const dest = ac.createMediaStreamDestination();
+  const mix = RM.mix = { dest, loop:null, out:dest.stream };
+  if (pref('headphones') === '1'){ useRemote(mix.out, null); return; }
+  loopback(dest.stream).then(lp => {
+    if (RM.mix !== mix){ if (lp) lp.close(); return; }
+    mix.loop = lp; if (lp) mix.out = lp.stream;
+    useRemote(mix.out, null);
+  });
+}
+function roomAudioStop(){
+  RM.audioGen++;
+  txStop();
+  const mix = RM.mix; RM.mix = null;
+  if (mix && mix.loop) mix.loop.close();
+}
+function makePlayer(m){
+  const ac = S.ac; if (!ac || !RM.mix) return null;
+  const p = { node:null, an:null, sink:null };
+  if (RM.wk){
+    p.node = new AudioWorkletNode(ac, 'racia-play', {numberOfInputs:0, numberOfOutputs:1, outputChannelCount:[1]});
+    p.node.port.onmessage = () => { m.under++; };
+    p.push = f => { try{ p.node.port.postMessage({pcm:f}, [f.buffer]); }catch(e){ try{ p.node.port.postMessage({pcm:f}); }catch(_){} } };
+    p.setTarget = ms => p.node.port.postMessage({target:Math.round(ac.sampleRate * ms / 1000)});
   } else {
     const core = playerCore(ac.sampleRate);
-    jb.node = ac.createScriptProcessor(1024, 1, 1);
-    jb.node.onaudioprocess = e => { if (core.fill(e.outputBuffer.getChannelData(0))) jb.under++; };
-    jb.push = f => core.push(f);
-    jb.setTarget = s => { core.target = s; };
+    p.node = ac.createScriptProcessor(1024, 1, 1);
+    p.node.onaudioprocess = e => { if (core.fill(e.outputBuffer.getChannelData(0))) m.under++; };
+    p.push = f => core.push(f);
+    p.setTarget = ms => { core.target = Math.round(ac.sampleRate * ms / 1000); };
   }
-  jb.setTarget(Math.round(ac.sampleRate * jb.targetMs / 1000));
-  const dest = ac.createMediaStreamDestination();
-  jb.node.connect(dest);
-  jb.sink = ac.createGain(); jb.sink.gain.value = 0; jb.node.connect(jb.sink); jb.sink.connect(ac.destination);
-  R.rx = jb;
-  jb.out = dest.stream;
-  if (pref('headphones') === '1'){ if (R.mode !== 'up') useRemote(jb.out, null); return; }
-  loopback(dest.stream).then(lp => {
-    if (R.rx !== jb){ if (lp) lp.close(); return; }
-    jb.loop = lp; if (lp) jb.out = lp.stream;
-    if (R.mode !== 'up') useRemote(jb.out, null);
-  });
+  p.node.connect(RM.mix.dest);
+  p.sink = ac.createGain(); p.sink.gain.value = 0; p.node.connect(p.sink); p.sink.connect(ac.destination);
+  p.an = ac.createAnalyser(); p.an.fftSize = 1024; p.node.connect(p.an);
+  const buf = new Float32Array(p.an.fftSize);
+  p.read = () => { p.an.getFloatTimeDomainData(buf); let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+    const db = 20 * Math.log10(Math.sqrt(s / buf.length) || 1e-8); return Math.max(0, Math.min(1, (db + 58) / 52)); };
+  p.stop = () => { try{ if (p.node.port) p.node.port.onmessage = null; p.node.onaudioprocess = null; p.node.disconnect(); p.sink.disconnect(); }catch(e){} };
+  p.setTarget(m.targetMs);
+  m.rs8 = makeResampler(8000, ac.sampleRate); m.rs48 = makeResampler(48000, ac.sampleRate);
+  return p;
+}
+function roomAudioIn(m, body){
+  if (body.length < 6) return;
+  /* с этим участником говорим напрямую — копия через сервер не нужна */
+  if (m.up && m.up.selfUp && m.up.el) return;
+  if (!m.player){ m.player = makePlayer(m); if (!m.player) return; }
+  const codec = body[0];
+  const seq = ((body[1] << 24) | (body[2] << 16) | (body[3] << 8) | body[4]) >>> 0;
+  if (m.rxSeq >= 0 && seq <= m.rxSeq && m.rxSeq - seq < 100000) return;
+  m.rxSeq = seq;
+  const now = performance.now();
+  if (now - m.lastArr > 400 || m.lastSeq < 0 || seq < m.lastSeq || seq - m.lastSeq > 25) m.spMin = Infinity;
+  const tr = now - seq * PKT_MS;
+  if (tr < m.spMin) m.spMin = tr;
+  m.lat.push(tr - m.spMin); if (m.lat.length > 150) m.lat.shift();
+  m.lastArr = now; m.lastSeq = seq;
+  const data = body.subarray(5);
+  if (codec === 2){
+    const f = new Float32Array(data.length);
+    for (let i = 0; i < data.length; i++) f[i] = ulawToLin(data[i]) / 32768;
+    m.player.push(m.rs8(f));
+  } else if (codec === 1){
+    if (!m.dec){
+      if (typeof AudioDecoder === 'undefined') return;
+      try{
+        const dec = new AudioDecoder({
+          output: ad => {
+            const f = new Float32Array(ad.numberOfFrames);
+            try{ ad.copyTo(f, {planeIndex:0, format:'f32-planar'}); }catch(e){ try{ ad.copyTo(f, {planeIndex:0}); }catch(_){} }
+            ad.close();
+            if (m.player && m.dec === dec) m.player.push(m.rs48(f));
+          },
+          error: () => { if (m.dec === dec) m.dec = null; }
+        });
+        dec.configure({codec:'opus', sampleRate:48000, numberOfChannels:1});
+        m.dec = dec;
+      }catch(e){ m.dec = null; return; }
+    }
+    const n = data[0]; let k = 1;
+    for (let i = 0; i < n && k + 2 <= data.length; i++){
+      const len = (data[k] << 8) | data[k + 1]; k += 2;
+      if (k + len > data.length) break;
+      try{ m.dec.decode(new EncodedAudioChunk({type:'key', timestamp:m.ts, data:data.slice(k, k + len)})); }catch(e){}
+      k += len; m.ts += 20000;
+    }
+  }
+}
+function sendAudio(codec, body){
+  RM.txSeq = (RM.txSeq + 1) >>> 0;
+  const h = new Uint8Array(5); h[0] = codec; new DataView(h.buffer).setUint32(1, RM.txSeq);
+  roomSend(1, u8cat([h, body]), roomTopic('a/' + RM.pid), roomAudioConns()).catch(() => {});
+}
+function txFlushOpus(tx){
+  const ch = tx.chunks; tx.chunks = [];
+  if (!ch.length) return;
+  const parts = [Uint8Array.of(ch.length)];
+  for (const b of ch) parts.push(Uint8Array.of(b.length >> 8, b.length & 255), b);
+  sendAudio(1, u8cat(parts));
 }
 function txStart(){
   const ac = S.ac; if (!ac || !S.localStream) return;
   txStop();
   const tx = { src:ac.createMediaStreamSource(S.localStream), node:null, enc:null, chunks:[], ts:0, ul:new Float32Array(0), rs:null, sink:null };
-  if (R.useOpus){
+  if (RM.useOpus){
     try{
       tx.enc = new AudioEncoder({
         output: ch => { const b = new Uint8Array(ch.byteLength); ch.copyTo(b); tx.chunks.push(b); if (tx.chunks.length >= 2) txFlushOpus(tx); },
@@ -1328,11 +1346,11 @@ function txStart(){
       });
       tx.enc.configure({codec:'opus', sampleRate:48000, numberOfChannels:1, bitrate:24000});
       tx.rs = makeResampler(ac.sampleRate, 48000);
-    }catch(e){ tx.enc = null; }
+    }catch(e){ tx.enc = null; RM.opusOK = false; }
   }
-  if (!tx.enc){ R.useOpus = false; tx.rs = makeResampler(ac.sampleRate, 8000); }
-  const feed = x => { if (R.tx === tx && onRelay() && R.txVia && !S.muted) txPush(tx, x); };
-  if (R.wk){
+  if (!tx.enc){ RM.useOpus = false; tx.rs = makeResampler(ac.sampleRate, 8000); }
+  const feed = x => { if (RM.tx === tx && RM.txVia && !S.muted) txPush(tx, x); };
+  if (RM.wk){
     tx.node = new AudioWorkletNode(ac, 'racia-cap', {numberOfInputs:1, numberOfOutputs:1, outputChannelCount:[1]});
     tx.node.port.onmessage = e => feed(e.data);
   } else {
@@ -1341,7 +1359,7 @@ function txStart(){
   }
   tx.src.connect(tx.node);
   tx.sink = ac.createGain(); tx.sink.gain.value = 0; tx.node.connect(tx.sink); tx.sink.connect(ac.destination);
-  R.tx = tx;
+  RM.tx = tx;
 }
 function txPush(tx, x){
   const pcm = tx.rs(x); if (!pcm.length) return;
@@ -1358,173 +1376,157 @@ function txPush(tx, x){
     for (; k + 320 <= all.length; k += 320){
       const u = new Uint8Array(320);
       for (let i = 0; i < 320; i++) u[i] = linToUlaw(Math.max(-32767, Math.min(32767, Math.round(all[k + i] * 32767))));
-      relaySendAudio(2, u);
+      sendAudio(2, u);
     }
     tx.ul = all.slice(k);
   }
 }
 function txStop(){
-  const tx = R.tx; R.tx = null;
+  const tx = RM.tx; RM.tx = null;
   if (!tx) return;
   try{ if (tx.node.port) tx.node.port.onmessage = null; tx.node.onaudioprocess = null; tx.node.disconnect(); tx.src.disconnect(); tx.sink && tx.sink.disconnect(); }catch(e){}
   try{ tx.enc && tx.enc.state !== 'closed' && tx.enc.close(); }catch(e){}
 }
-function rxAudio(body){
-  const jb = R.rx;
-  if (!jb || !onRelay() || body.length < 6) return;
-  const codec = body[0];
-  const seq = ((body[1] << 24) | (body[2] << 16) | (body[3] << 8) | body[4]) >>> 0;
-  if (R.rxSeq >= 0 && seq <= R.rxSeq && R.rxSeq - seq < 100000) return;
-  R.rxSeq = seq;
-  /* насколько пакет опоздал относительно ровного графика — по этому подстраиваем буфер */
-  const now = performance.now();
-  if (now - jb.lastArr > 400 || jb.lastSeq < 0 || seq < jb.lastSeq || seq - jb.lastSeq > 25) jb.spMin = Infinity;
-  const tr = now - seq * 40;
-  if (tr < jb.spMin) jb.spMin = tr;
-  jb.lat.push(tr - jb.spMin); if (jb.lat.length > 150) jb.lat.shift();
-  jb.lastArr = now; jb.lastSeq = seq;
-  const data = body.subarray(5);
-  if (codec === 2){
-    const f = new Float32Array(data.length);
-    for (let i = 0; i < data.length; i++) f[i] = ulawToLin(data[i]) / 32768;
-    jb.push(jb.rs8(f));
-  } else if (codec === 1){
-    if (!jb.dec){
-      if (typeof AudioDecoder === 'undefined') return;
-      try{
-        const dec = new AudioDecoder({
-          output: ad => {
-            const f = new Float32Array(ad.numberOfFrames);
-            try{ ad.copyTo(f, {planeIndex:0, format:'f32-planar'}); }catch(e){ try{ ad.copyTo(f, {planeIndex:0}); }catch(_){} }
-            ad.close();
-            if (R.rx === jb) jb.push(jb.rs48(f));
-          },
-          error: () => { if (jb.dec === dec) jb.dec = null; }
-        });
-        dec.configure({codec:'opus', sampleRate:48000, numberOfChannels:1});
-        jb.dec = dec;
-      }catch(e){ jb.dec = null; return; }
-    }
-    const n = data[0]; let k = 1;
-    for (let i = 0; i < n && k + 2 <= data.length; i++){
-      const len = (data[k] << 8) | data[k + 1]; k += 2;
-      if (k + len > data.length) break;
-      try{ jb.dec.decode(new EncodedAudioChunk({type:'key', timestamp:jb.ts, data:data.slice(k, k + len)})); }catch(e){}
-      k += len; jb.ts += 20000;
-    }
+
+/* ---------- прямые каналы между парами ---------- */
+function upMake(m, a){
+  upClose(m);
+  const pc = new RTCPeerConnection({iceServers:iceServers()});
+  const u = m.up = { pc, a, selfUp:false, peerUp:false, stream:null, cand:[], remoteSet:false, timer:0, downT:0, el:null, meter:null };
+  pc.onicecandidate = e => { if (e.candidate && m.up === u) roomCtl({t:'ice', to:m.pid, a, c:e.candidate.toJSON()}, m.pid); };
+  pc.ontrack = e => { if (m.up !== u) return; u.stream = e.streams[0] || new MediaStream([e.track]); if (u.selfUp) upApply(m); };
+  pc.onconnectionstatechange = () => upState(m, u);
+  pc.oniceconnectionstatechange = () => upState(m, u);
+  u.timer = setTimeout(() => { if (m.up === u && !u.selfUp) upFail(m); }, 12000);
+  return u;
+}
+async function upStart(m){
+  if (!RM.joined || RM.members.get(m.pid) !== m || m.up || pref('forceRelay') === '1' || !S.localStream || RM.pid > m.pid) return;
+  const a = rnd(8, 'abcdefghijkmnpqrstuvwxyz23456789');
+  const u = upMake(m, a);
+  try{
+    S.localStream.getAudioTracks().forEach(t => u.pc.addTrack(t, S.localStream));
+    await u.pc.setLocalDescription(await u.pc.createOffer());
+    if (m.up === u) roomCtl({t:'sdp', to:m.pid, a, d:{type:'offer', sdp:u.pc.localDescription.sdp}}, m.pid);
+  }catch(e){ if (m.up === u) upFail(m); }
+}
+async function upOnSdp(m, msg){
+  const d = msg.d;
+  if (!d || typeof d.sdp !== 'string' || typeof msg.a !== 'string') return;
+  if (d.type === 'offer' && RM.pid > m.pid){
+    if (pref('forceRelay') === '1' || !S.localStream) return;
+    const u = upMake(m, msg.a);
+    try{
+      await u.pc.setRemoteDescription({type:'offer', sdp:d.sdp}); u.remoteSet = true;
+      upFlush(u, (m.early[msg.a] || []).concat(u.cand)); delete m.early[msg.a];
+      S.localStream.getAudioTracks().forEach(t => u.pc.addTrack(t, S.localStream));
+      await u.pc.setLocalDescription(await u.pc.createAnswer());
+      if (m.up === u) roomCtl({t:'sdp', to:m.pid, a:msg.a, d:{type:'answer', sdp:u.pc.localDescription.sdp}}, m.pid);
+    }catch(e){ if (m.up === u) upFail(m); }
+  } else if (d.type === 'answer' && m.up && m.up.a === msg.a){
+    const u = m.up;
+    try{ await u.pc.setRemoteDescription({type:'answer', sdp:d.sdp}); u.remoteSet = true; upFlush(u, u.cand); }
+    catch(e){ if (m.up === u) upFail(m); }
   }
 }
-function relayAudioStop(){
-  R.audioGen++;
-  txStop();
-  const jb = R.rx; R.rx = null;
-  clearInterval(R.pingT); clearInterval(R.statT);
-  if (jb){
-    try{ if (jb.node.port) jb.node.port.onmessage = null; jb.node.onaudioprocess = null; jb.node.disconnect(); jb.sink && jb.sink.disconnect(); }catch(e){}
-    try{ jb.dec && jb.dec.state !== 'closed' && jb.dec.close(); }catch(e){}
-    try{ jb.loop && jb.loop.close(); }catch(e){}
+function upFlush(u, list){ u.cand = []; for (const c of list) u.pc.addIceCandidate(c).catch(() => {}); }
+function upOnIce(m, msg){
+  if (!msg.c || typeof msg.a !== 'string') return;
+  const u = m.up;
+  if (u && u.a === msg.a){ if (u.remoteSet) u.pc.addIceCandidate(msg.c).catch(() => {}); else u.cand.push(msg.c); }
+  else (m.early[msg.a] = m.early[msg.a] || []).push(msg.c);
+}
+function upState(m, u){
+  if (m.up !== u) return;
+  const st = linkState(u.pc);
+  if (st === 'connected'){
+    clearTimeout(u.downT); u.downT = 0;
+    if (!u.selfUp){ u.selfUp = true; clearTimeout(u.timer); roomCtl({t:'up', to:m.pid, a:u.a, v:1}, m.pid); upApply(m); }
+  } else if (st === 'failed' || st === 'closed'){
+    upFail(m);
+  } else if (st === 'disconnected' && u.selfUp){
+    if (!u.downT) u.downT = setTimeout(() => { u.downT = 0; if (m.up === u) upFail(m); }, 2500);
   }
+}
+function upApply(m){
+  const u = m.up; if (!u) return;
+  if (u.selfUp && u.stream && !u.el){
+    const el = document.createElement('audio');
+    el.autoplay = true; el.setAttribute('playsinline', ''); el.hidden = true;
+    el.srcObject = u.stream; el.volume = (+pref('vol') || 100) / 100;
+    document.body.append(el);
+    el.play().catch(() => { $('btnSound').hidden = false; });
+    u.el = el; u.meter = makeMeter(u.stream);
+  }
+  roomTxVia();
+}
+function upOnUp(m, msg){
+  const u = m.up;
+  if (!u || msg.a !== u.a) return;
+  if (msg.v){ u.peerUp = true; roomTxVia(); }
+  else upFail(m, true);
+}
+function upFail(m, silent){
+  const u = m.up;
+  upClose(m);
+  if (u && !silent) roomCtl({t:'up', to:m.pid, a:u.a, v:0}, m.pid);
+  roomTxVia();
+  if (RM.pid < m.pid && RM.members.get(m.pid) === m && m.upTries < 3 && pref('forceRelay') !== '1'){
+    clearTimeout(m.upRetry); m.upRetry = setTimeout(() => upStart(m), 15000 * ++m.upTries);
+  }
+}
+function upClose(m){
+  const u = m.up; if (!u) return;
+  m.up = null;
+  clearTimeout(u.timer); clearTimeout(u.downT);
+  if (u.el){ try{ u.el.srcObject = null; u.el.remove(); }catch(e){} }
+  if (u.meter) u.meter.disconnect();
+  try{ u.pc.close(); }catch(e){}
+}
+function allAudioEls(){ return [$('remote'), ...roomPeers().map(m => m.up && m.up.el).filter(Boolean)]; }
+
+/* ---------- создать канал / войти / выйти ---------- */
+async function roomCreate(){
+  stopAll(); S.mode = 'room';
+  try{ await ensureMic(); }catch(e){ return failMic(e); }
+  S.code = rnd(6);
+  setChan(fmt(S.code));
+  toConnecting('Открываем канал…');
+  try{ await roomStart(S.code, true); }catch(e){ stopAll(); return toIdle('Не удалось открыть канал: ' + e.message, 'err'); }
+  S.joinTimer = setTimeout(() => {
+    if (S.mode === 'room' && S.state === 'connecting'){
+      stopAll(); toIdle('Серверы-ретрансляторы не отвечают. Проверьте интернет или откройте «Проверка связи» внизу.', 'err');
+    }
+  }, 20000);
+}
+async function roomJoin(){
+  const code = $('inCode').value.replace(/\D/g, '');
+  if (code.length !== 6){ setStatus('Код канала — 6 цифр. Проверьте, что ввели его полностью.', 'err'); $('inCode').focus(); return; }
+  stopAll(); S.mode = 'room'; S.code = code;
+  try{ await ensureMic(); }catch(e){ return failMic(e); }
+  setChan(fmt(code));
+  toConnecting('Подключаемся к каналу ' + fmt(code) + '…', 'Ищем канал через серверы-ретрансляторы. Страница Рации у того, кто уже в канале, должна быть открыта, а не свёрнута.');
+  try{ await roomStart(code, false); }catch(e){ stopAll(); return toIdle('Не удалось подключиться: ' + e.message, 'err'); }
+  S.joinTimer = setTimeout(() => {
+    if (S.mode === 'room' && !RM.joined){
+      const up = RM.conns.some(c => c.ok);
+      stopAll();
+      toIdle(up ? 'Канал не найден за минуту. Проверьте код. Страница Рации у тех, кто в канале, должна быть открыта на экране.'
+                : 'Серверы-ретрансляторы не отвечают из вашей сети. Откройте «Проверка связи» внизу.', 'err');
+    }
+  }, 60000);
+}
+function roomLeave(msg){
+  roomBye();
+  stopAll(); toIdle(msg || 'Вы вышли из канала');
 }
 
-/* ---------- прямой канал поверх сервера ----------
-   Пока говорите через сервер, программа пробует открыть прямое WebRTC-соединение,
-   договариваясь о нём через тот же зашифрованный канал. Получилось — голос идёт напрямую
-   с минимальной задержкой; оборвалось — мгновенно возвращается на сервер. */
-const UP = { pc:null, a:'', selfUp:false, peerUp:false, stream:null, cand:[], early:{}, remoteSet:false, timer:0, downT:0, retryT:0, tries:0, pendingOffer:null };
-function upMakePC(a){
-  upClose();
-  const pc = new RTCPeerConnection({iceServers:iceServers()});
-  UP.pc = pc; UP.a = a; UP.selfUp = false; UP.peerUp = false; UP.stream = null; UP.cand = []; UP.remoteSet = false;
-  pc.onicecandidate = e => { if (e.candidate && UP.pc === pc) relaySendCtl({t:'ice', a, c:e.candidate.toJSON()}); };
-  pc.ontrack = e => { if (UP.pc !== pc) return; UP.stream = e.streams[0] || new MediaStream([e.track]); if (UP.selfUp) upApply(); };
-  pc.onconnectionstatechange = () => upState(pc);
-  pc.oniceconnectionstatechange = () => upState(pc);
-  UP.timer = setTimeout(() => { if (UP.pc === pc && !UP.selfUp) upFail(); }, 12000);
-  return pc;
+/* Opus — только если его понимают все в канале, иначе эконом-звук */
+function roomCodec(){
+  if (!RM.tx) return;
+  const want = !!RM.opusOK && roomPeers().every(m => m.opus);
+  if (want !== RM.useOpus){ RM.useOpus = want; txStart(); }
 }
-async function upStart(){
-  if (S.role !== 'guest' || R.mode !== 'relay' || UP.pc || pref('forceRelay') === '1' || !S.localStream) return;
-  const a = rnd(8, 'abcdefghijkmnpqrstuvwxyz23456789');
-  const pc = upMakePC(a);
-  try{
-    S.localStream.getAudioTracks().forEach(t => pc.addTrack(t, S.localStream));
-    await pc.setLocalDescription(await pc.createOffer());
-    if (UP.pc === pc) relaySendCtl({t:'sdp', a, d:{type:'offer', sdp:pc.localDescription.sdp}});
-  }catch(e){ if (UP.pc === pc) upFail(); }
-}
-async function upOnSdp(m){
-  const d = m && m.d;
-  if (!d || typeof d.sdp !== 'string' || typeof m.a !== 'string') return;
-  if (d.type === 'offer' && S.role === 'host'){
-    if (!onRelay()){ UP.pendingOffer = m; return; }
-    if (pref('forceRelay') === '1') return;
-    const pc = upMakePC(m.a);
-    try{
-      await pc.setRemoteDescription({type:'offer', sdp:d.sdp}); UP.remoteSet = true;
-      upFlush(pc, (UP.early[m.a] || []).concat(UP.cand)); delete UP.early[m.a];
-      S.localStream.getAudioTracks().forEach(t => pc.addTrack(t, S.localStream));
-      await pc.setLocalDescription(await pc.createAnswer());
-      if (UP.pc === pc) relaySendCtl({t:'sdp', a:m.a, d:{type:'answer', sdp:pc.localDescription.sdp}});
-    }catch(e){ if (UP.pc === pc) upFail(); }
-  } else if (d.type === 'answer' && S.role === 'guest' && UP.pc && m.a === UP.a){
-    const pc = UP.pc;
-    try{ await pc.setRemoteDescription({type:'answer', sdp:d.sdp}); UP.remoteSet = true; upFlush(pc, UP.cand); }
-    catch(e){ if (UP.pc === pc) upFail(); }
-  }
-}
-function upFlush(pc, list){ UP.cand = []; for (const c of list) pc.addIceCandidate(c).catch(() => {}); }
-function upOnIce(m){
-  if (!m || !m.c || typeof m.a !== 'string') return;
-  if (UP.pc && m.a === UP.a){
-    if (UP.remoteSet) UP.pc.addIceCandidate(m.c).catch(() => {}); else UP.cand.push(m.c);
-  } else if (S.role === 'host'){
-    (UP.early[m.a] = UP.early[m.a] || []).push(m.c);
-  }
-}
-function upState(pc){
-  if (UP.pc !== pc) return;
-  const st = linkState(pc);
-  if (st === 'connected'){
-    clearTimeout(UP.downT); UP.downT = 0;
-    if (!UP.selfUp){ UP.selfUp = true; clearTimeout(UP.timer); relaySendCtl({t:'up', a:UP.a, v:1}); upApply(); }
-  } else if (st === 'failed' || st === 'closed'){
-    upFail();
-  } else if (st === 'disconnected' && UP.selfUp){
-    if (!UP.downT) UP.downT = setTimeout(() => { UP.downT = 0; if (UP.pc === pc) upFail(); }, 2500);
-  }
-}
-function upApply(){
-  if (!onRelay()) return;
-  /* слушаем прямой канал, как только он открылся у нас */
-  if (UP.selfUp && UP.stream && R.mode !== 'up'){ R.mode = 'up'; useRemote(UP.stream, null); }
-  /* через сервер перестаём слать, когда друг тоже слышит напрямую */
-  R.txVia = !(UP.selfUp && UP.peerUp);
-}
-function upOnUp(m){
-  if (!m || m.a !== UP.a || !UP.pc) return;
-  if (m.v){ UP.peerUp = true; upApply(); }
-  else upFail(true);
-}
-function upFail(silent){
-  const wasUp = R.mode === 'up', had = !!UP.pc, a = UP.a;
-  upClose();
-  if (had && !silent) relaySendCtl({t:'up', a, v:0});
-  R.txVia = true;
-  if (wasUp){
-    R.mode = 'relay';
-    if (R.rx && R.rx.out) useRemote(R.rx.out, null);
-    relayRoute();
-  }
-  if (S.role === 'guest' && onRelay() && UP.tries < 3 && pref('forceRelay') !== '1'){
-    clearTimeout(UP.retryT); UP.retryT = setTimeout(upStart, 15000 * ++UP.tries);
-  }
-}
-function upClose(){
-  clearTimeout(UP.timer); clearTimeout(UP.downT); UP.downT = 0;
-  const pc = UP.pc; UP.pc = null; UP.selfUp = false; UP.peerUp = false; UP.stream = null; UP.cand = []; UP.remoteSet = false;
-  if (pc){ try{ pc.close(); }catch(e){} }
-}
-function upReset(){ upClose(); clearTimeout(UP.retryT); UP.early = {}; UP.pendingOffer = null; UP.tries = 0; }
 
 /* ---------- проверка связи ---------- */
 function hostOf(url){ try{ return new URL(url).host; }catch(e){ return url; } }
@@ -1536,16 +1538,6 @@ function testBroker(url){
     const fin = (ok, v) => { if (done) return; done = true; clearTimeout(timer); if (c) c.close(); ok ? res(v) : rej(v); };
     c = mqttOpen(url, topic, msg => { if (td.decode(msg) === tok) fin(true, Math.round(performance.now() - t0) + ' мс'); }, cc => cc.publish(topic, te.encode(tok)));
     timer = setTimeout(() => fin(false, c.opened ? 'не отвечает' : 'недоступен'), 9000);
-  });
-}
-function testPeerServer(){
-  return new Promise((res, rej) => {
-    if (typeof Peer === 'undefined') return rej('не загрузился');
-    const t0 = performance.now(); let p;
-    try{ p = new Peer(PREFIX + 't' + rnd(12, 'abcdefghijkmnpqrstuvwxyz23456789'), Object.assign({debug:0}, serverOpts())); }catch(e){ return rej('ошибка'); }
-    const timer = setTimeout(() => { try{ p.destroy(); }catch(e){} rej('недоступен'); }, 9000);
-    p.on('open', () => { clearTimeout(timer); res(Math.round(performance.now() - t0) + ' мс'); setTimeout(() => { try{ p.destroy(); }catch(e){} }, 200); });
-    p.on('error', e => { clearTimeout(timer); try{ p.destroy(); }catch(_){} rej('недоступен'); });
   });
 }
 async function testIce(relay){
@@ -1580,7 +1572,7 @@ async function runDiag(){
       r.ok = ok; r.info = v; ic.className = rs.className = ok ? 'ok' : 'bad'; ic.textContent = ok ? '✓' : '✗'; rs.textContent = v;
     });
   };
-  const jobs = [row('Поиск по коду: ' + (pref('server') ? hostOf(pref('server')) : '0.peerjs.com'), 'peer')(testPeerServer())];
+  const jobs = [];
   for (const u of relayList()) jobs.push(row('Ретранслятор голоса: ' + hostOf(u), 'relay')(testBroker(u)));
   jobs.push(row('Прямая связь: внешний адрес (STUN)', 'stun')(testIce(false)));
   jobs.push(row('Прямая связь: ретранслятор TURN', 'turn')(testIce(true)));
@@ -1710,12 +1702,13 @@ const VOSK = { state:'idle', pct:0, model:null, rec:null, src:null, node:null, l
 const capLines = new Map();
 const MAX_LINES = 5;
 
-function capLine(who, id){
+function capLine(who, id, label, color){
   const key = who + '|' + id;
   let L = capLines.get(key);
   if (L) return L;
-  const el = document.createElement('div'); el.className = 'cl ' + who;
-  const tag = document.createElement('span'); tag.className = 'who'; tag.textContent = who === 'me' ? 'ВЫ' : 'ДРУГ';
+  const el = document.createElement('div'); el.className = 'cl ' + (who === 'me' ? 'me' : 'friend c' + (color || 1));
+  const tag = document.createElement('span'); tag.className = 'who'; tag.textContent = who === 'me' ? 'ВЫ' : String(label || 'ДРУГ').toUpperCase();
+  tag.title = who === 'me' ? 'Вы' : String(label || 'Друг');
   const ws = document.createElement('span'); ws.className = 'ws';
   el.append(tag, ws); $('lines').append(el);
   L = {el, ws, words:[], key}; capLines.set(key, L);
@@ -1728,10 +1721,10 @@ function capLine(who, id){
   }
   return L;
 }
-function capShow(who, id, text, final){
+function capShow(who, id, text, final, label, color){
   const words = String(text || '').trim().split(/\s+/).filter(Boolean).slice(0, 80);
   if (!words.length){ const L = capLines.get(who + '|' + id); if (L && final) L.el.classList.add('fin'); return; }
-  const L = capLine(who, id);
+  const L = capLine(who, id, label, color);
   let fresh = 0;
   words.forEach((w, i) => {
     const old = L.words[i];
@@ -1764,10 +1757,9 @@ function capDemo(){
   });
 }
 function sendCtl(obj){
-  if (onRelay()) return relaySendCtl(obj);
+  if (S.mode === 'room') return roomCtl(obj);
   try{
-    if (S.mode === 'peer'){ const c = S.call && ctls.get(S.call.peer); if (c && c.open) c.send(obj); }
-    else if (S.mode === 'manual'){ const dc = S.pc && dcs.get(S.pc); if (dc && dc.readyState === 'open') dc.send(JSON.stringify(obj)); }
+    if (S.mode === 'manual'){ const dc = S.pc && dcs.get(S.pc); if (dc && dc.readyState === 'open') dc.send(JSON.stringify(obj)); }
   }catch(e){}
 }
 function capEmit(text, final){
@@ -1778,9 +1770,9 @@ function capEmit(text, final){
   cap.pending = final ? '' : text;
   if (final) cap.line++;
 }
-function capRecv(d){
+function capRecv(d, m){
   if (!d || typeof d.s !== 'string') return;
-  capShow('friend', 'f' + String(d.id).slice(0, 12), d.s.slice(0, 400), !!d.f);
+  capShow(m ? 'p' + m.pid : 'friend', 'f' + String(d.id).slice(0, 12), d.s.slice(0, 400), !!d.f, m ? peerName(m) : 'Друг', m ? m.color : 1);
 }
 function voskOK(){
   const AC = window.AudioContext || window.webkitAudioContext;
@@ -1946,9 +1938,8 @@ async function grabWake(){
 }
 function releaseWake(){ try{ S.wake && S.wake.release(); }catch(e){} S.wake = null; }
 function wakeUpLinks(){
-  if (S.peer && S.peer.disconnected && !S.peer.destroyed){ try{ S.peer.reconnect(); }catch(e){} }
-  for (const c of R.conns) if (c.kick) c.kick();
-  if (S.role === 'guest' && S.state === 'connecting' && S.retryCall) setTimeout(S.retryCall, 800);
+  for (const c of RM.conns) if (c.kick) c.kick();
+  if (RM.active){ if (RM.joined) roomPing(); else roomHello(); }
 }
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
@@ -1956,17 +1947,6 @@ document.addEventListener('visibilitychange', () => {
   if (S.state === 'incall') grabWake();
 });
 window.addEventListener('online', wakeUpLinks);
-/* сколько серверов-ретрансляторов отвечает — видно на экране, пока ждём друга */
-setInterval(() => {
-  if (!R.active || onRelay() || (S.state !== 'waiting' && S.state !== 'connecting')) return;
-  const up = R.conns.filter(c => c.ok).length, n = R.conns.length;
-  if (!n) return;
-  $('route').textContent = 'серверы: ' + up + ' из ' + n;
-  if (S.role === 'guest' && S.state === 'connecting' && !up && !R.warned && Date.now() - R.t0 > 10000){
-    R.warned = true;
-    setStatus('Серверы-ретрансляторы не отвечают из вашей сети. Откройте «Проверка связи» внизу.', 'err');
-  }
-}, 1000);
 function isWeb(){ return /^https?:$/.test(location.protocol); }
 function inviteLink(){ return (isWeb() ? location.origin + location.pathname : HOME) + '#' + S.code; }
 function inviteText(){ return 'Заходи в Рацию, поговорим: ' + inviteLink() + ' (код канала ' + fmt(S.code) + ')'; }
@@ -1983,22 +1963,29 @@ async function copyText(text, btn){
   btn.textContent = ok ? 'Скопировано' : 'Выделите и скопируйте вручную';
   setTimeout(() => { btn.textContent = old; }, 1800);
 }
+function shareInvite(btn){
+  if (navigator.share) navigator.share({title:'Рация', text:'Заходи в Рацию, поговорим (код канала ' + fmt(S.code) + ')', url:inviteLink()}).catch(() => {});
+  else copyText(inviteText(), btn);
+}
 
-$('btnCreate').onclick = createChannel;
-$('btnJoin').onclick = joinChannel;
+$('btnCreate').onclick = roomCreate;
+$('btnJoin').onclick = roomJoin;
 $('inCode').addEventListener('input', e => {
   const d = e.target.value.replace(/\D/g, '').slice(0, 6);
   e.target.value = d.length > 3 ? d.slice(0,3) + ' ' + d.slice(3) : d;
 });
-$('inCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinChannel(); });
-$('btnCancel').onclick = () => { relayBye(); stopAll(); toIdle(); };
-$('btnHang').onclick = () => { relayBye(); stopAll(); toIdle('Связь завершена'); };
+$('inCode').addEventListener('keydown', e => { if (e.key === 'Enter') roomJoin(); });
+$('inName').value = pref('name');
+$('inName').addEventListener('change', e => { pref('name', e.target.value.trim().slice(0, 20)); roomPing(); });
+$('btnCancel').onclick = () => { if (S.mode === 'room') roomLeave('Вы вышли из канала'); else { stopAll(); toIdle(); } };
+$('btnHang').onclick = () => { if (S.mode === 'room') roomLeave('Вы вышли из канала'); else { stopAll(); toIdle('Связь завершена'); } };
 $('btnCopy').onclick = e => copyText(inviteText(), e.currentTarget);
-$('btnShare').onclick = () => { navigator.share({title:'Рация', text:'Заходи в Рацию, поговорим (код канала ' + fmt(S.code) + ')', url:inviteLink()}).catch(()=>{}); };
-$('btnMute').onclick = () => { S.muted = !S.muted; applyMute(); };
-$('btnSound').onclick = () => { $('remote').play().then(() => { $('btnSound').hidden = true; }).catch(()=>{}); ensureAudioCtx(); };
+$('btnShare').onclick = e => shareInvite(e.currentTarget);
+$('btnInvite').onclick = e => shareInvite(e.currentTarget);
+$('btnMute').onclick = () => { S.muted = !S.muted; applyMute(); roomPing(); };
+$('btnSound').onclick = () => { for (const a of allAudioEls()) a.play().catch(() => {}); $('btnSound').hidden = true; ensureAudioCtx(); };
 $('vol').value = pref('vol') || 100;
-$('vol').oninput = e => { $('remote').volume = e.target.value / 100; pref('vol', e.target.value); };
+$('vol').oninput = e => { for (const a of allAudioEls()) a.volume = e.target.value / 100; pref('vol', e.target.value); };
 $('micSel').onchange = e => switchMic(e.target.value);
 $('btnDiag').onclick = () => { runDiag().catch(() => { $('btnDiag').disabled = false; }); };
 $('btnDiagCopy').onclick = e => S.diagText && copyText(S.diagText, e.currentTarget);
@@ -2013,14 +2000,14 @@ $('fRelay').checked = pref('forceRelay') === '1';
 $('fRelay').onchange = e => pref('forceRelay', e.target.checked ? '1' : '0');
 $('fHp').checked = pref('headphones') === '1';
 $('fHp').onchange = e => pref('headphones', e.target.checked ? '1' : '0');
-for (const [id, k] of [['tUrl','turnUrl'],['tUser','turnUser'],['tPass','turnPass'],['sUrl','server'],['rUrl','relays']]){
+for (const [id, k] of [['tUrl','turnUrl'],['tUser','turnUser'],['tPass','turnPass'],['rUrl','relays']]){
   $(id).value = pref(k); $(id).addEventListener('change', e => pref(k, e.target.value.trim()));
 }
 document.addEventListener('keydown', e => {
   if (S.state !== 'incall' || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
-  if (e.key === 'm' || e.key === 'M' || e.key === 'ь' || e.key === 'Ь'){ S.muted = !S.muted; applyMute(); }
+  if (e.key === 'm' || e.key === 'M' || e.key === 'ь' || e.key === 'Ь'){ S.muted = !S.muted; applyMute(); roomPing(); }
 });
-window.addEventListener('pagehide', () => { try{ relayBye(); endCall(); S.peer && S.peer.destroy(); }catch(e){} });
+window.addEventListener('pagehide', () => { try{ roomBye(); endCall(); }catch(e){} });
 
 function readHash(){
   const h = location.hash.replace(/\D/g, '');
@@ -2041,10 +2028,11 @@ window.addEventListener('hashchange', readHash);
     const a = document.createElement('a'); a.href = HOME; a.textContent = HOME.replace(/^https:\/\//, '').replace(/\/$/, ''); a.target = '_blank'; a.rel = 'noopener';
     f.append(a);
   }
-  if (!window.RTCPeerConnection){ toIdle('Этот браузер не поддерживает голосовую связь. Откройте программу в Chrome, Яндекс Браузере, Edge или Firefox.', 'err'); return; }
+  if (!window.RTCPeerConnection && !relayCanRun()){ toIdle('Этот браузер не поддерживает голосовую связь. Откройте программу в Chrome, Яндекс Браузере, Edge или Firefox.', 'err'); return; }
   $('fine').append(' Версия ' + VERSION + '.');
   setChan('— — —'); setStatus('Создайте канал или введите код друга');
   readHash();
+  requestAnimationFrame(meterLoop);
 })();
 </script>
 </body>
